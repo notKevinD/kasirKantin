@@ -15,17 +15,26 @@ import {
   ShoppingCart,
   Utensils,
 } from "lucide-react";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useState } from "react";
 import { formatOrderDate, formatRupiah } from "@/lib/format";
 
 type Product = {
   id: string;
   name: string;
-  category: string;
+  categoryId: string;
+  category: Category;
   price: number;
   imageUrl: string | null;
   description: string | null;
   isAvailable: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type Category = {
+  id: string;
+  name: string;
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
@@ -82,24 +91,27 @@ const reportRanges: { id: ReportRange; label: string }[] = [
 
 const emptyProductForm = {
   name: "",
-  category: "Makanan",
+  categoryId: "",
   price: "",
   description: "",
 };
 
 export function PosApp({
   initialProducts,
+  initialCategories,
   initialOrders,
   user,
 }: {
   initialProducts: Product[];
+  initialCategories: Category[];
   initialOrders: Order[];
   user: CurrentUser;
 }) {
   const [products, setProducts] = useState(initialProducts);
+  const [categories] = useState(initialCategories);
   const [orders, setOrders] = useState(initialOrders);
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [activeCategory, setActiveCategory] = useState("Semua");
+  const [activeCategoryId, setActiveCategoryId] = useState("all");
   const [query, setQuery] = useState("");
   const [orderType, setOrderType] = useState("Dine in");
   const [paymentMethod, setPaymentMethod] = useState("Tunai");
@@ -109,18 +121,16 @@ export function PosApp({
   );
   const [reportRange, setReportRange] = useState<ReportRange>("today");
   const [lastOrder, setLastOrder] = useState<Order | null>(orders[0] ?? null);
-  const [productForm, setProductForm] = useState(emptyProductForm);
+  const [productForm, setProductForm] = useState({
+    ...emptyProductForm,
+    categoryId: initialCategories[0]?.id ?? "",
+  });
   const [productImage, setProductImage] = useState<File | null>(null);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
 
-  const categories = useMemo(
-    () => ["Semua", ...Array.from(new Set(products.map((item) => item.category)))],
-    [products],
-  );
-
   const visibleProducts = products.filter((product) => {
     const matchesCategory =
-      activeCategory === "Semua" || product.category === activeCategory;
+      activeCategoryId === "all" || product.categoryId === activeCategoryId;
     const matchesQuery = product.name.toLowerCase().includes(query.toLowerCase());
     return matchesCategory && matchesQuery;
   });
@@ -250,7 +260,7 @@ export function PosApp({
     const payload = {
       ...productForm,
       imageUrl,
-      price: Number(productForm.price),
+        price: Number(productForm.price),
     };
 
     if (editingProductId) {
@@ -311,7 +321,10 @@ export function PosApp({
   }
 
   function resetProductForm(form?: HTMLFormElement) {
-    setProductForm(emptyProductForm);
+    setProductForm({
+      ...emptyProductForm,
+      categoryId: categories[0]?.id ?? "",
+    });
     setProductImage(null);
     setEditingProductId(null);
     form?.reset();
@@ -321,7 +334,7 @@ export function PosApp({
     setEditingProductId(product.id);
     setProductForm({
       name: product.name,
-      category: product.category,
+      categoryId: product.categoryId,
       price: String(product.price),
       description: product.description ?? "",
     });
@@ -454,17 +467,17 @@ export function PosApp({
                   />
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {categories.map((category) => (
+                  {[{ id: "all", name: "Semua" }, ...categories].map((category) => (
                     <button
-                      key={category}
-                      onClick={() => setActiveCategory(category)}
+                      key={category.id}
+                      onClick={() => setActiveCategoryId(category.id)}
                       className={`h-12 rounded-[8px] px-4 font-bold ${
-                        activeCategory === category
+                        activeCategoryId === category.id
                           ? "bg-[#d85f32] text-white"
                           : "bg-[#eef3df] text-[#28451f]"
                       }`}
                     >
-                      {category}
+                      {category.name}
                     </button>
                   ))}
                 </div>
@@ -656,11 +669,14 @@ export function PosApp({
                   setProductForm((current) => ({ ...current, name: value }))
                 }
               />
-              <FormInput
-                label="Kategori"
-                value={productForm.category}
+              <CategorySelect
+                categories={categories}
+                value={productForm.categoryId}
                 onChange={(value) =>
-                  setProductForm((current) => ({ ...current, category: value }))
+                  setProductForm((current) => ({
+                    ...current,
+                    categoryId: value,
+                  }))
                 }
               />
               <FormInput
@@ -727,7 +743,9 @@ export function PosApp({
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-black">{product.name}</p>
-                        <p className="text-sm text-[#68705c]">{product.category}</p>
+                        <p className="text-sm text-[#68705c]">
+                          {product.category.name}
+                        </p>
                         <p className="font-bold text-[#d85f32]">
                           {formatRupiah(product.price)}
                         </p>
@@ -1019,6 +1037,35 @@ function PhotoInput({
       <span className="mt-1 block text-xs font-bold text-[#68705c]">
         {fileName || helperText}
       </span>
+    </label>
+  );
+}
+
+function CategorySelect({
+  categories,
+  value,
+  onChange,
+}: {
+  categories: Category[];
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="mb-3 block">
+      <span className="mb-1 block text-sm font-bold text-[#68705c]">
+        Kategori
+      </span>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="h-12 w-full rounded-[8px] border border-[#d6c9aa] bg-white px-3 outline-none"
+      >
+        {categories.map((category) => (
+          <option key={category.id} value={category.id}>
+            {category.name}
+          </option>
+        ))}
+      </select>
     </label>
   );
 }

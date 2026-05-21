@@ -16,7 +16,8 @@ export async function PATCH(
     where: { id },
     data: {
       name: body.name === undefined ? undefined : String(body.name),
-      category: body.category === undefined ? undefined : String(body.category),
+      categoryId:
+        body.categoryId === undefined ? undefined : String(body.categoryId),
       price: body.price === undefined ? undefined : Number(body.price),
       imageUrl: body.imageUrl === undefined ? undefined : body.imageUrl || null,
       description:
@@ -26,6 +27,7 @@ export async function PATCH(
       sortOrder:
         body.sortOrder === undefined ? undefined : Number(body.sortOrder),
     },
+    include: { category: true },
   });
 
   return NextResponse.json(product);

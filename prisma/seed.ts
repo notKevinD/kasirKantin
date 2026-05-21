@@ -4,6 +4,13 @@ import { hashPassword } from "../src/lib/password";
 
 const prisma = new PrismaClient();
 
+const categories = [
+  { name: "Makanan", sortOrder: 1 },
+  { name: "Minuman", sortOrder: 2 },
+  { name: "Snack", sortOrder: 3 },
+  { name: "Paket", sortOrder: 4 },
+];
+
 const products = [
   {
     name: "Nasi Goreng Joyful",
@@ -72,10 +79,6 @@ const products = [
 ];
 
 async function main() {
-  await prisma.orderItem.deleteMany();
-  await prisma.order.deleteMany();
-  await prisma.product.deleteMany();
-
   await prisma.user.upsert({
     where: { username: "admin" },
     update: {
@@ -91,8 +94,40 @@ async function main() {
     },
   });
 
+  const createdCategories = new Map<string, string>();
+
+  for (const category of categories) {
+    const createdCategory = await prisma.category.upsert({
+      where: { name: category.name },
+      update: { sortOrder: category.sortOrder },
+      create: category,
+    });
+    createdCategories.set(createdCategory.name, createdCategory.id);
+  }
+
+  const productCount = await prisma.product.count();
+
+  if (productCount > 0) {
+    return;
+  }
+
   for (const product of products) {
-    await prisma.product.create({ data: product });
+    const categoryId = createdCategories.get(product.category);
+
+    if (!categoryId) {
+      throw new Error(`Kategori ${product.category} belum dibuat.`);
+    }
+
+    await prisma.product.create({
+      data: {
+        name: product.name,
+        categoryId,
+        price: product.price,
+        imageUrl: product.imageUrl,
+        description: product.description,
+        sortOrder: product.sortOrder,
+      },
+    });
   }
 }
 

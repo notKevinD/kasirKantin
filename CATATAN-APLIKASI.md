@@ -6,8 +6,10 @@
 - Database PostgreSQL dengan Prisma.
 - Login kasir/admin berbasis cookie.
 - Data menu awal makanan, minuman, snack, dan paket.
+- Kategori menu memakai tabel `Category`, bukan teks bebas di produk.
 - Tampilan kasir dengan foto menu, kategori, pencarian, keranjang, catatan pesanan, dine in/bungkus, tunai, dan QRIS manual.
 - Tambah menu baru dari halaman Menu dengan upload foto langsung.
+- Tambah/edit menu memilih kategori dari dropdown agar tidak dobel karena salah ketik.
 - Ubah status menu tersedia/tidak tersedia.
 - Simpan transaksi ke database.
 - Format nota yang siap dicetak melalui fitur print browser.
@@ -66,6 +68,20 @@ prisma/schema.prisma
 ```
 
 Database `joyful_pos` sudah dibuat di PostgreSQL lokal Laragon dan migrasi Prisma sudah dijalankan.
+
+Kategori sekarang tersimpan di tabel:
+
+```text
+Category
+```
+
+Produk menyimpan:
+
+```text
+Product.categoryId
+```
+
+Jadi kategori tidak lagi disimpan sebagai teks bebas langsung di produk.
 
 ## Login Awal
 

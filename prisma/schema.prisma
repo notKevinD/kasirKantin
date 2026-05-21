@@ -25,7 +25,7 @@ model User {
 model Product {
   id          String      @id @default(cuid())
   name        String
-  category    String
+  categoryId  String
   price       Int
   imageUrl    String?
   description String?
@@ -33,7 +33,17 @@ model Product {
   sortOrder   Int         @default(0)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
+  category    Category    @relation(fields: [categoryId], references: [id])
   orderItems  OrderItem[]
+}
+
+model Category {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  sortOrder Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  products  Product[]
 }
 
 model Order {
