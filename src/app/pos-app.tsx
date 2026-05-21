@@ -108,7 +108,7 @@ export function PosApp({
   user: CurrentUser;
 }) {
   const [products, setProducts] = useState(initialProducts);
-  const [categories] = useState(initialCategories);
+  const [categories, setCategories] = useState(initialCategories);
   const [orders, setOrders] = useState(initialOrders);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [activeCategoryId, setActiveCategoryId] = useState("all");
@@ -127,6 +127,7 @@ export function PosApp({
   });
   const [productImage, setProductImage] = useState<File | null>(null);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
+  const [categoryName, setCategoryName] = useState("");
 
   const visibleProducts = products.filter((product) => {
     const matchesCategory =
@@ -365,6 +366,29 @@ export function PosApp({
     if (editingProductId === product.id) {
       resetProductForm();
     }
+  }
+
+  async function addCategory(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const response = await fetch("/api/categories", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: categoryName,
+        sortOrder: categories.length + 1,
+      }),
+    });
+
+    if (!response.ok) {
+      alert("Kategori belum bisa ditambahkan. Pastikan namanya belum ada.");
+      return;
+    }
+
+    const category = (await response.json()) as Category;
+    setCategories((current) => [...current, category]);
+    setProductForm((current) => ({ ...current, categoryId: category.id }));
+    setCategoryName("");
   }
 
   async function toggleProduct(product: Product) {
@@ -654,73 +678,90 @@ export function PosApp({
 
         {activeTab === "menu" && (
           <section className="grid gap-4 lg:grid-cols-[420px_1fr]">
-            <form
-              onSubmit={addProduct}
-              className="rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4"
-            >
-              <h2 className="mb-4 flex items-center gap-2 text-xl font-black">
-                <Utensils size={22} />{" "}
-                {editingProductId ? "Edit Menu" : "Tambah Menu"}
-              </h2>
-              <FormInput
-                label="Nama menu"
-                value={productForm.name}
-                onChange={(value) =>
-                  setProductForm((current) => ({ ...current, name: value }))
-                }
-              />
-              <CategorySelect
-                categories={categories}
-                value={productForm.categoryId}
-                onChange={(value) =>
-                  setProductForm((current) => ({
-                    ...current,
-                    categoryId: value,
-                  }))
-                }
-              />
-              <FormInput
-                label="Harga"
-                value={productForm.price}
-                inputMode="numeric"
-                onChange={(value) =>
-                  setProductForm((current) => ({ ...current, price: value }))
-                }
-              />
-              <FormInput
-                label="Deskripsi singkat"
-                value={productForm.description}
-                onChange={(value) =>
-                  setProductForm((current) => ({
-                    ...current,
-                    description: value,
-                  }))
-                }
-              />
-              <PhotoInput
-                fileName={productImage?.name ?? ""}
-                onChange={setProductImage}
-                helperText={
-                  editingProductId
-                    ? "Kosongkan jika tidak ingin mengganti foto."
-                    : "Pilih foto dari tablet atau komputer."
-                }
-              />
-              <div className="mt-2 grid gap-2">
-                <button className="h-12 w-full rounded-[8px] bg-[#28451f] font-black text-white">
-                  {editingProductId ? "Simpan Perubahan" : "Simpan Menu"}
+            <div className="space-y-4">
+              <form
+                onSubmit={addCategory}
+                className="rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4"
+              >
+                <h2 className="mb-4 text-xl font-black">Tambah Kategori</h2>
+                <FormInput
+                  label="Nama kategori"
+                  value={categoryName}
+                  onChange={setCategoryName}
+                />
+                <button className="h-12 w-full rounded-[8px] bg-[#d85f32] font-black text-white">
+                  Simpan Kategori
                 </button>
-                {editingProductId && (
-                  <button
-                    type="button"
-                    onClick={() => resetProductForm()}
-                    className="h-11 w-full rounded-[8px] bg-[#eef3df] font-black text-[#28451f]"
-                  >
-                    Batal Edit
+              </form>
+
+              <form
+                onSubmit={addProduct}
+                className="rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4"
+              >
+                <h2 className="mb-4 flex items-center gap-2 text-xl font-black">
+                  <Utensils size={22} />{" "}
+                  {editingProductId ? "Edit Menu" : "Tambah Menu"}
+                </h2>
+                <FormInput
+                  label="Nama menu"
+                  value={productForm.name}
+                  onChange={(value) =>
+                    setProductForm((current) => ({ ...current, name: value }))
+                  }
+                />
+                <CategorySelect
+                  categories={categories}
+                  value={productForm.categoryId}
+                  onChange={(value) =>
+                    setProductForm((current) => ({
+                      ...current,
+                      categoryId: value,
+                    }))
+                  }
+                />
+                <FormInput
+                  label="Harga"
+                  value={productForm.price}
+                  inputMode="numeric"
+                  onChange={(value) =>
+                    setProductForm((current) => ({ ...current, price: value }))
+                  }
+                />
+                <FormInput
+                  label="Deskripsi singkat"
+                  value={productForm.description}
+                  onChange={(value) =>
+                    setProductForm((current) => ({
+                      ...current,
+                      description: value,
+                    }))
+                  }
+                />
+                <PhotoInput
+                  fileName={productImage?.name ?? ""}
+                  onChange={setProductImage}
+                  helperText={
+                    editingProductId
+                      ? "Kosongkan jika tidak ingin mengganti foto."
+                      : "Pilih foto dari tablet atau komputer."
+                  }
+                />
+                <div className="mt-2 grid gap-2">
+                  <button className="h-12 w-full rounded-[8px] bg-[#28451f] font-black text-white">
+                    {editingProductId ? "Simpan Perubahan" : "Simpan Menu"}
                   </button>
-                )}
-              </div>
-            </form>
+                  {editingProductId && (
+                    <button
+                      type="button"
+                      onClick={() => resetProductForm()}
+                      className="h-11 w-full rounded-[8px] bg-[#eef3df] font-black text-[#28451f]"
+                    >
+                      Batal Edit
+                    </button>
+                  )}
+                </div>
+              </form>
+            </div>
 
             <div className="rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4">
               <h2 className="mb-4 text-xl font-black">Daftar Menu</h2>
