@@ -1,0 +1,8 @@
+<svg width="640" height="420" viewBox="0 0 640 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="640" height="420" rx="32" fill="#eef5e2"/>
+  <path d="M238 96h164l-22 226c-2 25-23 44-48 44h-24c-25 0-46-19-48-44L238 96Z" fill="#f5cf67" stroke="#284420" stroke-width="10"/>
+  <path d="M257 188h126l-12 129c-2 16-15 28-31 28h-40c-16 0-29-12-31-28l-12-129Z" fill="#c67a2d"/>
+  <circle cx="292" cy="145" r="18" fill="#fbf7ec"/>
+  <circle cx="348" cy="149" r="22" fill="#fbf7ec"/>
+  <text x="320" y="382" text-anchor="middle" font-family="Arial" font-size="36" font-weight="700" fill="#24401f">Es Teh</text>
+</svg>
