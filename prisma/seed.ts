@@ -121,7 +121,9 @@ async function main() {
     await prisma.product.create({
       data: {
         name: product.name,
-        categoryId,
+        category: {
+          connect: { id: categoryId },
+        },
         price: product.price,
         imageUrl: product.imageUrl,
         description: product.description,

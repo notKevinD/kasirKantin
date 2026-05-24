@@ -113,6 +113,7 @@ export function PosApp({
   const [cart, setCart] = useState<CartItem[]>([]);
   const [activeCategoryId, setActiveCategoryId] = useState("all");
   const [query, setQuery] = useState("");
+  const [menuQuery, setMenuQuery] = useState("");
   const [orderType, setOrderType] = useState("Dine in");
   const [paymentMethod, setPaymentMethod] = useState("Tunai");
   const [cashReceived, setCashReceived] = useState("");
@@ -134,6 +135,16 @@ export function PosApp({
       activeCategoryId === "all" || product.categoryId === activeCategoryId;
     const matchesQuery = product.name.toLowerCase().includes(query.toLowerCase());
     return matchesCategory && matchesQuery;
+  });
+  const visibleMenuProducts = products.filter((product) => {
+    const normalizedQuery = menuQuery.trim().toLowerCase();
+
+    if (!normalizedQuery) return true;
+
+    return (
+      product.name.toLowerCase().includes(normalizedQuery) ||
+      product.category.name.toLowerCase().includes(normalizedQuery)
+    );
   });
 
   const cartTotal = cart.reduce(
@@ -521,6 +532,7 @@ export function PosApp({
                           src={product.imageUrl}
                           alt={product.name}
                           fill
+                          unoptimized={product.imageUrl.startsWith("/uploads/")}
                           className="object-cover"
                         />
                       ) : null}
@@ -764,9 +776,25 @@ export function PosApp({
             </div>
 
             <div className="rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4">
-              <h2 className="mb-4 text-xl font-black">Daftar Menu</h2>
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <h2 className="text-xl font-black">Daftar Menu</h2>
+                <div className="flex h-12 min-w-[260px] flex-1 items-center gap-2 rounded-[8px] border border-[#d6c9aa] bg-white px-3 md:max-w-md">
+                  <Search size={20} />
+                  <input
+                    value={menuQuery}
+                    onChange={(event) => setMenuQuery(event.target.value)}
+                    placeholder="Cari nama atau kategori..."
+                    className="h-full flex-1 bg-transparent text-base outline-none"
+                  />
+                </div>
+              </div>
+              {visibleMenuProducts.length === 0 && (
+                <div className="rounded-[8px] border border-dashed border-[#c8b98f] p-6 text-center font-bold text-[#68705c]">
+                  Menu tidak ditemukan.
+                </div>
+              )}
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                {products.map((product) => (
+                {visibleMenuProducts.map((product) => (
                   <div
                     key={product.id}
                     className="rounded-[8px] border border-[#e1d5b8] bg-white p-3"
@@ -778,6 +806,7 @@ export function PosApp({
                             src={product.imageUrl}
                             alt={product.name}
                             fill
+                            unoptimized={product.imageUrl.startsWith("/uploads/")}
                             className="object-cover"
                           />
                         ) : null}
