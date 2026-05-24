@@ -490,7 +490,7 @@ export function PosApp({
   return (
     <main className="min-h-screen bg-[#f4efe2] text-[#24351f]">
       <section className="app-shell mx-auto flex min-h-screen w-full max-w-[1440px] flex-col px-5 py-4">
-        <header className="mb-4 flex flex-wrap items-center justify-between gap-4 rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] px-4 py-3 shadow-sm">
+        <header className="mb-4 flex flex-col gap-4 rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] px-4 py-3 shadow-sm xl:flex-row xl:items-center xl:justify-between">
           <div className="flex items-center gap-3">
             <Image
               src="/joyful-logo.svg"
@@ -504,27 +504,31 @@ export function PosApp({
               <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#6c7b43]">
                 Joyful POS
               </p>
-              <h1 className="text-2xl font-bold">Kasir Kantin Tablet</h1>
+              <h1 className="text-xl font-bold sm:text-2xl">
+                Kasir Kantin Tablet
+              </h1>
             </div>
           </div>
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <div className="grid grid-cols-3 gap-2 text-center">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch xl:justify-end">
+            <div className="grid flex-1 grid-cols-1 gap-2 text-left sm:grid-cols-3 sm:text-center xl:min-w-[460px]">
               <Summary label="Penjualan hari ini" value={formatRupiah(todaySales)} />
               <Summary label="Transaksi" value={`${todayOrders.length}`} />
               <Summary label="QRIS manual" value={formatRupiah(qrisSales)} />
             </div>
-            <div className="rounded-[8px] border border-[#d6c9aa] bg-white px-3 py-2 text-right">
-              <p className="text-xs font-bold uppercase text-[#68705c]">
-                Login
-              </p>
-              <p className="font-black">{user.name}</p>
+            <div className="grid grid-cols-[1fr_auto] gap-2 sm:min-w-[250px]">
+              <div className="rounded-[8px] border border-[#d6c9aa] bg-white px-3 py-2">
+                <p className="text-xs font-bold uppercase text-[#68705c]">
+                  Login
+                </p>
+                <p className="font-black leading-tight">{user.name}</p>
+              </div>
+              <button
+                onClick={logout}
+                className="h-full min-h-12 rounded-[8px] bg-[#f5ded5] px-4 font-black text-[#a13f28]"
+              >
+                Keluar
+              </button>
             </div>
-            <button
-              onClick={logout}
-              className="h-12 rounded-[8px] bg-[#f5ded5] px-4 font-black text-[#a13f28]"
-            >
-              Keluar
-            </button>
           </div>
         </header>
 
@@ -1006,9 +1010,11 @@ export function PosApp({
 
 function Summary({ label, value }: { label: string; value: string }) {
   return (
-    <div className="min-w-36 rounded-[8px] bg-[#eef3df] px-3 py-2">
-      <p className="text-xs font-bold uppercase text-[#68705c]">{label}</p>
-      <p className="text-lg font-black">{value}</p>
+    <div className="rounded-[8px] bg-[#eef3df] px-3 py-2">
+      <p className="break-words text-[11px] font-bold uppercase leading-tight text-[#68705c]">
+        {label}
+      </p>
+      <p className="mt-1 text-lg font-black leading-tight">{value}</p>
     </div>
   );
 }
