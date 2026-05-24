@@ -1,6 +1,20 @@
+import { unlink } from "node:fs/promises";
+import path from "node:path";
 import { NextResponse } from "next/server";
 import { requireApiUser } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
+
+async function deleteUploadFile(imageUrl: string | null) {
+  if (!imageUrl?.startsWith("/uploads/")) return;
+
+  const filePath = path.join(process.cwd(), "public", imageUrl.replace(/^\/+/, ""));
+
+  try {
+    await unlink(filePath);
+  } catch {
+    // File may already be missing; the database delete should still succeed.
+  }
+}
 
 export async function PATCH(
   request: Request,
@@ -41,6 +55,7 @@ export async function DELETE(
   if (authError) return authError;
 
   const { id } = await context.params;
+  const product = await prisma.product.findUnique({ where: { id } });
 
   await prisma.orderItem.updateMany({
     where: { productId: id },
@@ -50,6 +65,8 @@ export async function DELETE(
   await prisma.product.delete({
     where: { id },
   });
+
+  await deleteUploadFile(product?.imageUrl ?? null);
 
   return NextResponse.json({ ok: true });
 }

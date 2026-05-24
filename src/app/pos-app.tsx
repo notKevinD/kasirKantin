@@ -65,7 +65,8 @@ type Order = {
 };
 
 type CartItem = {
-  productId: string;
+  lineId: string;
+  productId: string | null;
   productName: string;
   unitPrice: number;
   quantity: number;
@@ -128,6 +129,7 @@ export function PosApp({
   });
   const [productImage, setProductImage] = useState<File | null>(null);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
+  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [categoryName, setCategoryName] = useState("");
 
   const visibleProducts = products.filter((product) => {
@@ -192,6 +194,7 @@ export function PosApp({
       return [
         ...current,
         {
+          lineId: product.id,
           productId: product.id,
           productName: product.name,
           unitPrice: product.price,
@@ -202,11 +205,11 @@ export function PosApp({
     });
   }
 
-  function updateQuantity(productId: string, direction: 1 | -1) {
+  function updateQuantity(lineId: string, direction: 1 | -1) {
     setCart((current) =>
       current
         .map((item) =>
-          item.productId === productId
+          item.lineId === lineId
             ? { ...item, quantity: item.quantity + direction }
             : item,
         )
@@ -214,10 +217,10 @@ export function PosApp({
     );
   }
 
-  function updateNote(productId: string, note: string) {
+  function updateNote(lineId: string, note: string) {
     setCart((current) =>
       current.map((item) =>
-        item.productId === productId ? { ...item, note } : item,
+        item.lineId === lineId ? { ...item, note } : item,
       ),
     );
   }
@@ -229,22 +232,25 @@ export function PosApp({
       return;
     }
 
-    const response = await fetch("/api/orders", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        orderType,
-        paymentMethod,
-        cashReceived: paymentMethod === "Tunai" ? Number(cashReceived) : null,
-        items: cart.map((item) => ({
-          productId: item.productId,
-          productName: item.productName,
-          unitPrice: item.unitPrice,
-          quantity: item.quantity,
-          note: item.note,
-        })),
-      }),
-    });
+    const response = await fetch(
+      editingOrderId ? `/api/orders/${editingOrderId}` : "/api/orders",
+      {
+        method: editingOrderId ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderType,
+          paymentMethod,
+          cashReceived: paymentMethod === "Tunai" ? Number(cashReceived) : null,
+          items: cart.map((item) => ({
+            productId: item.productId,
+            productName: item.productName,
+            unitPrice: item.unitPrice,
+            quantity: item.quantity,
+            note: item.note,
+          })),
+        }),
+      },
+    );
 
     if (!response.ok) {
       alert("Transaksi belum bisa disimpan.");
@@ -252,10 +258,15 @@ export function PosApp({
     }
 
     const order = (await response.json()) as Order;
-    setOrders((current) => [order, ...current]);
+    setOrders((current) =>
+      editingOrderId
+        ? current.map((item) => (item.id === order.id ? order : item))
+        : [order, ...current],
+    );
     setLastOrder(order);
     setCart([]);
     setCashReceived("");
+    setEditingOrderId(null);
     window.setTimeout(() => window.print(), 350);
   }
 
@@ -422,6 +433,55 @@ export function PosApp({
     setLastOrder(nextOrders[0] ?? null);
   }
 
+  function startEditOrder(order: Order) {
+    setEditingOrderId(order.id);
+    setOrderType(order.orderType);
+    setPaymentMethod(order.paymentMethod);
+    setCashReceived(order.cashReceived === null ? "" : String(order.cashReceived));
+    setCart(
+      order.items.map((item) => ({
+        lineId: item.productId ?? item.id ?? crypto.randomUUID(),
+        productId: item.productId,
+        productName: item.productName,
+        unitPrice: item.unitPrice,
+        quantity: item.quantity,
+        note: item.note ?? "",
+      })),
+    );
+    setActiveTab("kasir");
+  }
+
+  function cancelEditOrder() {
+    setEditingOrderId(null);
+    setCart([]);
+    setCashReceived("");
+  }
+
+  async function deleteOrder(order: Order) {
+    const confirmed = window.confirm(
+      `Hapus transaksi ${order.orderNumber}? Data transaksi ini akan hilang dari laporan.`,
+    );
+
+    if (!confirmed) return;
+
+    const response = await fetch(`/api/orders/${order.id}`, {
+      method: "DELETE",
+    });
+
+    if (!response.ok) {
+      alert("Transaksi belum bisa dihapus.");
+      return;
+    }
+
+    const nextOrders = orders.filter((item) => item.id !== order.id);
+    setOrders(nextOrders);
+    setLastOrder(nextOrders[0] ?? null);
+
+    if (editingOrderId === order.id) {
+      cancelEditOrder();
+    }
+  }
+
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
     window.location.href = "/login";
@@ -559,13 +619,14 @@ export function PosApp({
             <aside className="rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="flex items-center gap-2 text-xl font-black">
-                  <ShoppingCart size={22} /> Pesanan
+                  <ShoppingCart size={22} />{" "}
+                  {editingOrderId ? "Edit Transaksi" : "Pesanan"}
                 </h2>
                 <button
-                  onClick={() => setCart([])}
+                  onClick={editingOrderId ? cancelEditOrder : () => setCart([])}
                   className="rounded-[8px] px-3 py-2 text-sm font-bold text-[#a13f28]"
                 >
-                  Kosongkan
+                  {editingOrderId ? "Batal Edit" : "Kosongkan"}
                 </button>
               </div>
 
@@ -593,7 +654,7 @@ export function PosApp({
                 )}
                 {cart.map((item) => (
                   <div
-                    key={item.productId}
+                    key={item.lineId}
                     className="rounded-[8px] border border-[#e1d5b8] bg-white p-3"
                   >
                     <div className="flex items-start justify-between gap-3">
@@ -605,7 +666,7 @@ export function PosApp({
                       </div>
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() => updateQuantity(item.productId, -1)}
+                          onClick={() => updateQuantity(item.lineId, -1)}
                           className="grid h-9 w-9 place-items-center rounded-[8px] bg-[#eef3df]"
                           aria-label="Kurangi jumlah"
                         >
@@ -615,7 +676,7 @@ export function PosApp({
                           {item.quantity}
                         </span>
                         <button
-                          onClick={() => updateQuantity(item.productId, 1)}
+                          onClick={() => updateQuantity(item.lineId, 1)}
                           className="grid h-9 w-9 place-items-center rounded-[8px] bg-[#28451f] text-white"
                           aria-label="Tambah jumlah"
                         >
@@ -626,7 +687,7 @@ export function PosApp({
                     <input
                       value={item.note}
                       onChange={(event) =>
-                        updateNote(item.productId, event.target.value)
+                        updateNote(item.lineId, event.target.value)
                       }
                       placeholder="Catatan: tidak pedas, es sedikit..."
                       className="mt-3 h-10 w-full rounded-[8px] border border-[#e1d5b8] px-3 outline-none"
@@ -681,7 +742,10 @@ export function PosApp({
                   disabled={cart.length === 0}
                   className="flex h-14 w-full items-center justify-center gap-2 rounded-[8px] bg-[#28451f] text-lg font-black text-white disabled:opacity-50"
                 >
-                  <Printer size={22} /> Simpan & Cetak Nota
+                  <Printer size={22} />{" "}
+                  {editingOrderId
+                    ? "Simpan Perubahan & Cetak"
+                    : "Simpan & Cetak Nota"}
                 </button>
               </div>
             </aside>
@@ -923,7 +987,11 @@ export function PosApp({
                   ))}
                 </div>
               </div>
-              <OrderDetail order={lastOrder} />
+              <OrderDetail
+                order={lastOrder}
+                onEdit={startEditOrder}
+                onDelete={deleteOrder}
+              />
             </div>
 
             <SoldProductsReport products={soldProducts} />
@@ -945,7 +1013,15 @@ function Summary({ label, value }: { label: string; value: string }) {
   );
 }
 
-function OrderDetail({ order }: { order: Order | null }) {
+function OrderDetail({
+  order,
+  onEdit,
+  onDelete,
+}: {
+  order: Order | null;
+  onEdit: (order: Order) => void;
+  onDelete: (order: Order) => void;
+}) {
   if (!order) {
     return (
       <aside className="rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4">
@@ -964,12 +1040,26 @@ function OrderDetail({ order }: { order: Order | null }) {
           <h2 className="text-xl font-black">Detail Transaksi</h2>
           <p className="text-sm font-bold text-[#68705c]">{order.orderNumber}</p>
         </div>
-        <button
-          onClick={() => window.print()}
-          className="flex h-10 items-center gap-2 rounded-[8px] bg-[#28451f] px-3 text-sm font-black text-white"
-        >
-          <Printer size={16} /> Cetak
-        </button>
+        <div className="flex flex-wrap justify-end gap-2">
+          <button
+            onClick={() => onEdit(order)}
+            className="flex h-10 items-center gap-2 rounded-[8px] bg-[#f4efe2] px-3 text-sm font-black text-[#28451f]"
+          >
+            <Pencil size={16} /> Edit
+          </button>
+          <button
+            onClick={() => onDelete(order)}
+            className="h-10 rounded-[8px] bg-[#f5ded5] px-3 text-sm font-black text-[#a13f28]"
+          >
+            Hapus
+          </button>
+          <button
+            onClick={() => window.print()}
+            className="flex h-10 items-center gap-2 rounded-[8px] bg-[#28451f] px-3 text-sm font-black text-white"
+          >
+            <Printer size={16} /> Cetak
+          </button>
+        </div>
       </div>
 
       <div className="mb-4 grid grid-cols-2 gap-2 text-sm">
