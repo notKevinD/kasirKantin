@@ -637,10 +637,10 @@ export function PosApp({
                     <div className="relative aspect-[4/3] bg-[#eef3df]">
                       {product.imageUrl ? (
                         <Image
-                          src={product.imageUrl}
+                          src={getDisplayImageUrl(product.imageUrl)}
                           alt={product.name}
                           fill
-                          unoptimized={product.imageUrl.startsWith("/uploads/")}
+                          unoptimized={isUploadedImage(product.imageUrl)}
                           className="object-cover"
                         />
                       ) : null}
@@ -930,10 +930,10 @@ export function PosApp({
                       <div className="relative h-20 w-24 overflow-hidden rounded-[8px] bg-[#eef3df]">
                         {product.imageUrl ? (
                           <Image
-                            src={product.imageUrl}
+                            src={getDisplayImageUrl(product.imageUrl)}
                             alt={product.name}
                             fill
-                            unoptimized={product.imageUrl.startsWith("/uploads/")}
+                            unoptimized={isUploadedImage(product.imageUrl)}
                             className="object-cover"
                           />
                         ) : null}
@@ -1426,6 +1426,22 @@ function addDays(date: Date, days: number) {
   const nextDate = new Date(date);
   nextDate.setDate(nextDate.getDate() + days);
   return nextDate;
+}
+
+function isUploadedImage(imageUrl: string | null) {
+  return Boolean(
+    imageUrl?.startsWith("/uploads/") || imageUrl?.startsWith("/api/uploads/"),
+  );
+}
+
+function getDisplayImageUrl(imageUrl: string | null) {
+  if (!imageUrl) return "";
+
+  if (imageUrl.startsWith("/uploads/")) {
+    return imageUrl.replace("/uploads/", "/api/uploads/");
+  }
+
+  return imageUrl;
 }
 
 async function getErrorMessage(response: Response, fallback: string) {

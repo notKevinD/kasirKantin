@@ -5,9 +5,12 @@ import { requireApiUser } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 
 async function deleteUploadFile(imageUrl: string | null) {
-  if (!imageUrl?.startsWith("/uploads/")) return;
+  if (!imageUrl?.startsWith("/uploads/") && !imageUrl?.startsWith("/api/uploads/")) {
+    return;
+  }
 
-  const filePath = path.join(process.cwd(), "public", imageUrl.replace(/^\/+/, ""));
+  const fileName = path.basename(imageUrl);
+  const filePath = path.join(process.cwd(), "public", "uploads", fileName);
 
   try {
     await unlink(filePath);
