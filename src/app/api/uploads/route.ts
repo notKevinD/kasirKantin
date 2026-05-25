@@ -31,7 +31,7 @@ function detectImageExtension(bytes: Buffer) {
 }
 
 export async function POST(request: Request) {
-  const authError = await requireApiUser();
+  const authError = await requireApiUser(["owner", "admin"]);
   if (authError) return authError;
   const originError = requireSameOrigin(request);
   if (originError) return originError;

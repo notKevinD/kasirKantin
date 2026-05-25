@@ -508,6 +508,45 @@ export function PosApp({
     }
   }
 
+  async function deleteCategory(category: Category) {
+    const usedCount = products.filter(
+      (product) => product.categoryId === category.id,
+    ).length;
+
+    if (usedCount > 0) {
+      alert(
+        `Kategori "${category.name}" masih dipakai ${usedCount} menu. Pindahkan atau hapus menunya dulu.`,
+      );
+      return;
+    }
+
+    const confirmed = window.confirm(`Hapus kategori "${category.name}"?`);
+    if (!confirmed) return;
+
+    const response = await fetch(`/api/categories/${category.id}`, {
+      method: "DELETE",
+    });
+
+    if (!response.ok) {
+      alert(await getErrorMessage(response, "Kategori belum bisa dihapus."));
+      return;
+    }
+
+    const nextCategories = categories.filter((item) => item.id !== category.id);
+    setCategories(nextCategories);
+
+    if (activeCategoryId === category.id) {
+      setActiveCategoryId("all");
+    }
+
+    if (productForm.categoryId === category.id) {
+      setProductForm((current) => ({
+        ...current,
+        categoryId: nextCategories[0]?.id ?? "",
+      }));
+    }
+  }
+
   async function toggleProduct(product: Product) {
     const response = await fetch(`/api/products/${product.id}`, {
       method: "PATCH",
@@ -946,6 +985,40 @@ export function PosApp({
                 >
                   {isSavingCategory ? "Menyimpan..." : "Simpan Kategori"}
                 </button>
+                <div className="mt-4 space-y-2 border-t border-[#d6c9aa] pt-4">
+                  {categories.map((category) => {
+                    const usedCount = products.filter(
+                      (product) => product.categoryId === category.id,
+                    ).length;
+
+                    return (
+                      <div
+                        key={category.id}
+                        className="flex items-center justify-between gap-3 rounded-[8px] border border-[#e1d5b8] bg-white px-3 py-2"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate font-black">{category.name}</p>
+                          <p className="text-xs font-bold text-[#68705c]">
+                            {usedCount} menu
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => deleteCategory(category)}
+                          disabled={usedCount > 0}
+                          className="h-10 rounded-[8px] bg-[#f5ded5] px-3 text-sm font-black text-[#a13f28] disabled:opacity-45"
+                          title={
+                            usedCount > 0
+                              ? "Kategori masih dipakai menu"
+                              : "Hapus kategori"
+                          }
+                        >
+                          Hapus
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
               </form>
 
               <form

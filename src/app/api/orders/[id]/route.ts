@@ -30,7 +30,7 @@ export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const authError = await requireApiUser();
+  const authError = await requireApiUser(["owner", "admin"]);
   if (authError) return authError;
   const originError = requireSameOrigin(request);
   if (originError) return originError;
@@ -105,7 +105,7 @@ export async function DELETE(
   _request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const authError = await requireApiUser(["admin"]);
+  const authError = await requireApiUser(["owner", "admin"]);
   if (authError) return authError;
   const originError = requireSameOrigin(_request);
   if (originError) return originError;

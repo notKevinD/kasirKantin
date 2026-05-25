@@ -14,7 +14,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const authError = await requireApiUser(["admin"]);
+  const authError = await requireApiUser(["owner", "admin"]);
   if (authError) return authError;
   const originError = requireSameOrigin(request);
   if (originError) return originError;
