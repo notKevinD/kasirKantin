@@ -35,9 +35,9 @@ export async function POST(request: Request) {
     );
   }
 
-  if (file.size > 5 * 1024 * 1024) {
+  if (file.size > 10 * 1024 * 1024) {
     return NextResponse.json(
-      { message: "Ukuran foto maksimal 5 MB." },
+      { message: "Ukuran foto maksimal 10 MB." },
       { status: 400 },
     );
   }

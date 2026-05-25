@@ -131,6 +131,10 @@ export function PosApp({
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [categoryName, setCategoryName] = useState("");
+  const [isSavingOrder, setIsSavingOrder] = useState(false);
+  const [isSavingProduct, setIsSavingProduct] = useState(false);
+  const [isSavingCategory, setIsSavingCategory] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
   const visibleProducts = products.filter((product) => {
     const matchesCategory =
@@ -226,121 +230,150 @@ export function PosApp({
   }
 
   async function submitOrder() {
+    if (isSavingOrder) return;
     if (cart.length === 0) return;
     if (paymentMethod === "Tunai" && Number(cashReceived || 0) < cartTotal) {
       alert("Uang diterima masih kurang dari total belanja.");
       return;
     }
 
-    const response = await fetch(
-      editingOrderId ? `/api/orders/${editingOrderId}` : "/api/orders",
-      {
-        method: editingOrderId ? "PATCH" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          orderType,
-          paymentMethod,
-          cashReceived: paymentMethod === "Tunai" ? Number(cashReceived) : null,
-          items: cart.map((item) => ({
-            productId: item.productId,
-            productName: item.productName,
-            unitPrice: item.unitPrice,
-            quantity: item.quantity,
-            note: item.note,
-          })),
-        }),
-      },
-    );
+    setIsSavingOrder(true);
 
-    if (!response.ok) {
-      alert("Transaksi belum bisa disimpan.");
-      return;
+    try {
+      const response = await fetch(
+        editingOrderId ? `/api/orders/${editingOrderId}` : "/api/orders",
+        {
+          method: editingOrderId ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            orderType,
+            paymentMethod,
+            cashReceived:
+              paymentMethod === "Tunai" ? Number(cashReceived) : null,
+            items: cart.map((item) => ({
+              productId: item.productId,
+              productName: item.productName,
+              unitPrice: item.unitPrice,
+              quantity: item.quantity,
+              note: item.note,
+            })),
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        alert(await getErrorMessage(response, "Transaksi belum bisa disimpan."));
+        return;
+      }
+
+      const order = (await response.json()) as Order;
+      setOrders((current) =>
+        editingOrderId
+          ? current.map((item) => (item.id === order.id ? order : item))
+          : [order, ...current],
+      );
+      setLastOrder(order);
+      setCart([]);
+      setCashReceived("");
+      setEditingOrderId(null);
+      window.setTimeout(() => window.print(), 350);
+    } finally {
+      setIsSavingOrder(false);
     }
-
-    const order = (await response.json()) as Order;
-    setOrders((current) =>
-      editingOrderId
-        ? current.map((item) => (item.id === order.id ? order : item))
-        : [order, ...current],
-    );
-    setLastOrder(order);
-    setCart([]);
-    setCashReceived("");
-    setEditingOrderId(null);
-    window.setTimeout(() => window.print(), 350);
   }
 
   async function addProduct(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isSavingProduct) return;
+    setIsSavingProduct(true);
 
-    const editedProduct = products.find((item) => item.id === editingProductId);
-    const imageUrl = productImage
-      ? await uploadProductImage(productImage)
-      : editedProduct?.imageUrl ?? null;
+    try {
+      const editedProduct = products.find((item) => item.id === editingProductId);
+      const imageUrl = productImage
+        ? await uploadProductImage(productImage)
+        : editedProduct?.imageUrl ?? null;
 
-    if (productImage && !imageUrl) return;
+      if (productImage && !imageUrl) return;
 
-    const payload = {
-      ...productForm,
-      imageUrl,
+      const payload = {
+        ...productForm,
+        imageUrl,
         price: Number(productForm.price),
-    };
+      };
 
-    if (editingProductId) {
-      const response = await fetch(`/api/products/${editingProductId}`, {
-        method: "PATCH",
+      if (editingProductId) {
+        const response = await fetch(`/api/products/${editingProductId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+          alert(
+            await getErrorMessage(
+              response,
+              "Menu belum bisa disimpan. Cek nama, kategori, dan harga.",
+            ),
+          );
+          return;
+        }
+
+        const product = (await response.json()) as Product;
+        setProducts((current) =>
+          current.map((item) => (item.id === product.id ? product : item)),
+        );
+        resetProductForm(event.currentTarget);
+        return;
+      }
+
+      const response = await fetch("/api/products", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          ...payload,
+          sortOrder: products.length + 1,
+        }),
       });
 
       if (!response.ok) {
-        alert("Menu belum bisa disimpan. Cek nama, kategori, dan harga.");
+        alert(
+          await getErrorMessage(
+            response,
+            "Menu belum bisa ditambahkan. Cek nama, kategori, dan harga.",
+          ),
+        );
         return;
       }
 
       const product = (await response.json()) as Product;
-      setProducts((current) =>
-        current.map((item) => (item.id === product.id ? product : item)),
-      );
+      setProducts((current) => [...current, product]);
       resetProductForm(event.currentTarget);
-      return;
+    } finally {
+      setIsSavingProduct(false);
     }
-
-    const response = await fetch("/api/products", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...payload,
-        sortOrder: products.length + 1,
-      }),
-    });
-
-    if (!response.ok) {
-      alert("Menu belum bisa ditambahkan. Cek nama, kategori, dan harga.");
-      return;
-    }
-
-    const product = (await response.json()) as Product;
-    setProducts((current) => [...current, product]);
-    resetProductForm(event.currentTarget);
   }
 
   async function uploadProductImage(file: File) {
+    setIsUploadingPhoto(true);
     const uploadData = new FormData();
     uploadData.append("file", file);
 
-    const uploadResponse = await fetch("/api/uploads", {
-      method: "POST",
-      body: uploadData,
-    });
+    try {
+      const uploadResponse = await fetch("/api/uploads", {
+        method: "POST",
+        body: uploadData,
+      });
 
-    if (!uploadResponse.ok) {
-      alert("Foto menu belum bisa diupload.");
-      return null;
+      if (!uploadResponse.ok) {
+        alert(await getErrorMessage(uploadResponse, "Foto menu belum bisa diupload."));
+        return null;
+      }
+
+      const uploadResult = (await uploadResponse.json()) as { url: string };
+      return uploadResult.url;
+    } finally {
+      setIsUploadingPhoto(false);
     }
-
-    const uploadResult = (await uploadResponse.json()) as { url: string };
-    return uploadResult.url;
   }
 
   function resetProductForm(form?: HTMLFormElement) {
@@ -392,25 +425,36 @@ export function PosApp({
 
   async function addCategory(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isSavingCategory) return;
+    setIsSavingCategory(true);
 
-    const response = await fetch("/api/categories", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: categoryName,
-        sortOrder: categories.length + 1,
-      }),
-    });
+    try {
+      const response = await fetch("/api/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: categoryName,
+          sortOrder: categories.length + 1,
+        }),
+      });
 
-    if (!response.ok) {
-      alert("Kategori belum bisa ditambahkan. Pastikan namanya belum ada.");
-      return;
+      if (!response.ok) {
+        alert(
+          await getErrorMessage(
+            response,
+            "Kategori belum bisa ditambahkan. Pastikan namanya belum ada.",
+          ),
+        );
+        return;
+      }
+
+      const category = (await response.json()) as Category;
+      setCategories((current) => [...current, category]);
+      setProductForm((current) => ({ ...current, categoryId: category.id }));
+      setCategoryName("");
+    } finally {
+      setIsSavingCategory(false);
     }
-
-    const category = (await response.json()) as Category;
-    setCategories((current) => [...current, category]);
-    setProductForm((current) => ({ ...current, categoryId: category.id }));
-    setCategoryName("");
   }
 
   async function toggleProduct(product: Product) {
@@ -743,11 +787,13 @@ export function PosApp({
                 )}
                 <button
                   onClick={submitOrder}
-                  disabled={cart.length === 0}
+                  disabled={cart.length === 0 || isSavingOrder}
                   className="flex h-14 w-full items-center justify-center gap-2 rounded-[8px] bg-[#28451f] text-lg font-black text-white disabled:opacity-50"
                 >
                   <Printer size={22} />{" "}
-                  {editingOrderId
+                  {isSavingOrder
+                    ? "Menyimpan..."
+                    : editingOrderId
                     ? "Simpan Perubahan & Cetak"
                     : "Simpan & Cetak Nota"}
                 </button>
@@ -769,8 +815,11 @@ export function PosApp({
                   value={categoryName}
                   onChange={setCategoryName}
                 />
-                <button className="h-12 w-full rounded-[8px] bg-[#d85f32] font-black text-white">
-                  Simpan Kategori
+                <button
+                  disabled={isSavingCategory}
+                  className="h-12 w-full rounded-[8px] bg-[#d85f32] font-black text-white disabled:opacity-50"
+                >
+                  {isSavingCategory ? "Menyimpan..." : "Simpan Kategori"}
                 </button>
               </form>
 
@@ -820,6 +869,7 @@ export function PosApp({
                 <PhotoInput
                   fileName={productImage?.name ?? ""}
                   onChange={setProductImage}
+                  disabled={isSavingProduct}
                   helperText={
                     editingProductId
                       ? "Kosongkan jika tidak ingin mengganti foto."
@@ -827,8 +877,17 @@ export function PosApp({
                   }
                 />
                 <div className="mt-2 grid gap-2">
-                  <button className="h-12 w-full rounded-[8px] bg-[#28451f] font-black text-white">
-                    {editingProductId ? "Simpan Perubahan" : "Simpan Menu"}
+                  <button
+                    disabled={isSavingProduct}
+                    className="h-12 w-full rounded-[8px] bg-[#28451f] font-black text-white disabled:opacity-50"
+                  >
+                    {isUploadingPhoto
+                      ? "Mengupload foto..."
+                      : isSavingProduct
+                      ? "Menyimpan..."
+                      : editingProductId
+                      ? "Simpan Perubahan"
+                      : "Simpan Menu"}
                   </button>
                   {editingProductId && (
                     <button
@@ -1183,10 +1242,12 @@ function SoldProductsReport({
 function PhotoInput({
   fileName,
   helperText,
+  disabled,
   onChange,
 }: {
   fileName: string;
   helperText: string;
+  disabled?: boolean;
   onChange: (file: File | null) => void;
 }) {
   return (
@@ -1197,8 +1258,9 @@ function PhotoInput({
       <input
         type="file"
         accept="image/png,image/jpeg,image/webp,image/svg+xml"
+        disabled={disabled}
         onChange={(event) => onChange(event.target.files?.[0] ?? null)}
-        className="block w-full rounded-[8px] border border-[#d6c9aa] bg-white px-3 py-3 text-sm file:mr-3 file:rounded-[8px] file:border-0 file:bg-[#eef3df] file:px-3 file:py-2 file:font-bold file:text-[#28451f]"
+        className="block w-full rounded-[8px] border border-[#d6c9aa] bg-white px-3 py-3 text-sm disabled:opacity-50 file:mr-3 file:rounded-[8px] file:border-0 file:bg-[#eef3df] file:px-3 file:py-2 file:font-bold file:text-[#28451f]"
       />
       <span className="mt-1 block text-xs font-bold text-[#68705c]">
         {fileName || helperText}
@@ -1364,4 +1426,13 @@ function addDays(date: Date, days: number) {
   const nextDate = new Date(date);
   nextDate.setDate(nextDate.getDate() + days);
   return nextDate;
+}
+
+async function getErrorMessage(response: Response, fallback: string) {
+  try {
+    const data = (await response.json()) as { message?: string };
+    return data.message || fallback;
+  } catch {
+    return fallback;
+  }
 }
