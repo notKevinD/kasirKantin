@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireApiUser } from "@/lib/api-auth";
+import { requireApiUser, requireSameOrigin } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 
 export async function GET() {
@@ -14,8 +14,10 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const authError = await requireApiUser();
+  const authError = await requireApiUser(["admin"]);
   if (authError) return authError;
+  const originError = requireSameOrigin(request);
+  if (originError) return originError;
 
   const body = await request.json();
   const name = String(body.name || "").trim();

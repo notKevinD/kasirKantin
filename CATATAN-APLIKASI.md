@@ -89,7 +89,13 @@ User awal dari seed:
 
 ```text
 username: admin
-password: admin123
+password: nilai ADMIN_PASSWORD dari .env saat seed pertama
 ```
 
 Password disimpan dalam bentuk hash, bukan teks biasa.
+
+Catatan production:
+
+- Isi `AUTH_SECRET` minimal 32 karakter.
+- Isi `ADMIN_PASSWORD` sebelum seed pertama.
+- Setelah user admin sudah ada, seed tidak akan menimpa password lama.

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireApiUser } from "@/lib/api-auth";
+import { requireApiUser, requireSameOrigin } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 
 type OrderItemInput = {
@@ -33,6 +33,8 @@ export async function GET() {
 export async function POST(request: Request) {
   const authError = await requireApiUser();
   if (authError) return authError;
+  const originError = requireSameOrigin(request);
+  if (originError) return originError;
 
   const body = await request.json();
   const items = Array.isArray(body.items) ? (body.items as OrderItemInput[]) : [];

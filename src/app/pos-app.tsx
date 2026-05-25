@@ -162,14 +162,15 @@ export function PosApp({
       ? Math.max(Number(cashReceived || 0) - cartTotal, 0)
       : 0;
 
-  const todayOrders = orders.filter((order) =>
+  const activeOrders = orders.filter((order) => order.status !== "cancelled");
+  const todayOrders = activeOrders.filter((order) =>
     isOrderInRange(order, "today"),
   );
   const todaySales = todayOrders.reduce((sum, order) => sum + order.total, 0);
   const qrisSales = todayOrders
     .filter((order) => order.paymentMethod === "QRIS manual")
     .reduce((sum, order) => sum + order.total, 0);
-  const reportOrders = orders.filter((order) =>
+  const reportOrders = activeOrders.filter((order) =>
     isOrderInRange(order, reportRange),
   );
   const reportSales = reportOrders.reduce((sum, order) => sum + order.total, 0);
@@ -472,7 +473,7 @@ export function PosApp({
   }
 
   function changeReportRange(range: ReportRange) {
-    const nextOrders = orders.filter((order) => isOrderInRange(order, range));
+    const nextOrders = activeOrders.filter((order) => isOrderInRange(order, range));
     setReportRange(range);
     setLastOrder(nextOrders[0] ?? null);
   }
@@ -503,7 +504,7 @@ export function PosApp({
 
   async function deleteOrder(order: Order) {
     const confirmed = window.confirm(
-      `Hapus transaksi ${order.orderNumber}? Data transaksi ini akan hilang dari laporan.`,
+      `Batalkan transaksi ${order.orderNumber}? Transaksi tidak akan dihitung di laporan aktif.`,
     );
 
     if (!confirmed) return;
@@ -517,9 +518,11 @@ export function PosApp({
       return;
     }
 
-    const nextOrders = orders.filter((item) => item.id !== order.id);
+    const nextOrders = orders.map((item) =>
+      item.id === order.id ? { ...item, status: "cancelled" } : item,
+    );
     setOrders(nextOrders);
-    setLastOrder(nextOrders[0] ?? null);
+    setLastOrder(nextOrders.find((item) => item.status !== "cancelled") ?? null);
 
     if (editingOrderId === order.id) {
       cancelEditOrder();
@@ -1116,7 +1119,7 @@ function OrderDetail({
             onClick={() => onDelete(order)}
             className="h-10 rounded-[8px] bg-[#f5ded5] px-3 text-sm font-black text-[#a13f28]"
           >
-            Hapus
+            Void
           </button>
           <button
             onClick={() => window.print()}
@@ -1257,7 +1260,7 @@ function PhotoInput({
       </span>
       <input
         type="file"
-        accept="image/png,image/jpeg,image/webp,image/svg+xml"
+        accept="image/png,image/jpeg,image/webp"
         disabled={disabled}
         onChange={(event) => onChange(event.target.files?.[0] ?? null)}
         className="block w-full rounded-[8px] border border-[#d6c9aa] bg-white px-3 py-3 text-sm disabled:opacity-50 file:mr-3 file:rounded-[8px] file:border-0 file:bg-[#eef3df] file:px-3 file:py-2 file:font-bold file:text-[#28451f]"

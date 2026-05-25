@@ -22,7 +22,10 @@ export function LoginForm() {
     setIsLoading(false);
 
     if (!response.ok) {
-      setError("Username atau password salah.");
+      const data = (await response.json().catch(() => null)) as {
+        message?: string;
+      } | null;
+      setError(data?.message || "Username atau password salah.");
       return;
     }
 
@@ -65,9 +68,6 @@ export function LoginForm() {
       >
         {isLoading ? "Memeriksa..." : "Masuk"}
       </button>
-      <p className="text-center text-xs font-bold text-[#68705c]">
-        Default awal: admin / admin123
-      </p>
     </form>
   );
 }

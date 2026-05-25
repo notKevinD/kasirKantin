@@ -13,7 +13,17 @@ type SessionPayload = {
 };
 
 function getAuthSecret() {
-  return process.env.AUTH_SECRET || "joyful-dev-secret";
+  const secret = process.env.AUTH_SECRET;
+
+  if (!secret && process.env.NODE_ENV === "production") {
+    throw new Error("AUTH_SECRET wajib diisi di production.");
+  }
+
+  if (secret && secret.length < 32 && process.env.NODE_ENV === "production") {
+    throw new Error("AUTH_SECRET production minimal 32 karakter.");
+  }
+
+  return secret || "joyful-dev-secret-for-local-development-only";
 }
 
 function sign(value: string) {

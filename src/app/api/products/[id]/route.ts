@@ -1,7 +1,7 @@
 import { unlink } from "node:fs/promises";
 import path from "node:path";
 import { NextResponse } from "next/server";
-import { requireApiUser } from "@/lib/api-auth";
+import { requireApiUser, requireSameOrigin } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 
 async function deleteUploadFile(imageUrl: string | null) {
@@ -23,8 +23,10 @@ export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const authError = await requireApiUser();
+  const authError = await requireApiUser(["admin"]);
   if (authError) return authError;
+  const originError = requireSameOrigin(request);
+  if (originError) return originError;
 
   const { id } = await context.params;
   const body = await request.json();
@@ -54,8 +56,10 @@ export async function DELETE(
   _request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const authError = await requireApiUser();
+  const authError = await requireApiUser(["admin"]);
   if (authError) return authError;
+  const originError = requireSameOrigin(_request);
+  if (originError) return originError;
 
   const { id } = await context.params;
   const product = await prisma.product.findUnique({ where: { id } });

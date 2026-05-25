@@ -79,17 +79,25 @@ const products = [
 ];
 
 async function main() {
+  const existingAdmin = await prisma.user.findUnique({
+    where: { username: "admin" },
+  });
+  const adminPassword = process.env.ADMIN_PASSWORD;
+
+  if (!existingAdmin && process.env.NODE_ENV === "production" && !adminPassword) {
+    throw new Error("ADMIN_PASSWORD wajib diisi saat seed pertama di production.");
+  }
+
   await prisma.user.upsert({
     where: { username: "admin" },
     update: {
       name: "Admin Joyful",
-      passwordHash: hashPassword("admin123"),
       role: "admin",
     },
     create: {
       name: "Admin Joyful",
       username: "admin",
-      passwordHash: hashPassword("admin123"),
+      passwordHash: hashPassword(adminPassword || "admin123"),
       role: "admin",
     },
   });
