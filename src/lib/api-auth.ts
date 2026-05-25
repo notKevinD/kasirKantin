@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { readSessionToken, sessionCookieName } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
 type ApiSession = {
   userId: string;
@@ -25,7 +26,19 @@ export async function requireApiUser(allowedRoles?: string[]) {
     );
   }
 
-  if (allowedRoles && !allowedRoles.includes(session.role)) {
+  const user = await prisma.user.findUnique({
+    where: { id: session.userId },
+    select: { id: true, role: true, isActive: true },
+  });
+
+  if (!user?.isActive) {
+    return NextResponse.json(
+      { message: "Sesi sudah tidak aktif. Silakan login ulang." },
+      { status: 401 },
+    );
+  }
+
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
     return NextResponse.json(
       { message: "Akses tidak diizinkan." },
       { status: 403 },

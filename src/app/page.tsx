@@ -6,7 +6,8 @@ export const dynamic = "force-dynamic";
 
 export default async function Home() {
   const user = await requireUser();
-  const [products, categories, orders] = await Promise.all([
+  const canManage = user.role === "owner" || user.role === "admin";
+  const [products, categories, orders, users, auditLogs] = await Promise.all([
     prisma.product.findMany({
       include: { category: true },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
@@ -19,6 +20,26 @@ export default async function Home() {
       orderBy: { createdAt: "desc" },
       take: 50,
     }),
+    canManage
+      ? prisma.user.findMany({
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            role: true,
+            isActive: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        })
+      : Promise.resolve([]),
+    canManage
+      ? prisma.auditLog.findMany({
+          orderBy: { createdAt: "desc" },
+          take: 100,
+        })
+      : Promise.resolve([]),
   ]);
 
   return (
@@ -41,6 +62,15 @@ export default async function Home() {
       initialOrders={orders.map((order) => ({
         ...order,
         createdAt: order.createdAt.toISOString(),
+      }))}
+      initialUsers={users.map((item) => ({
+        ...item,
+        createdAt: item.createdAt.toISOString(),
+        updatedAt: item.updatedAt.toISOString(),
+      }))}
+      initialAuditLogs={auditLogs.map((item) => ({
+        ...item,
+        createdAt: item.createdAt.toISOString(),
       }))}
       user={user}
     />

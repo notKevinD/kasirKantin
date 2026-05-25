@@ -12,8 +12,10 @@ import {
   Printer,
   ReceiptText,
   Search,
+  ShieldCheck,
   ShoppingCart,
   Utensils,
+  Users,
 } from "lucide-react";
 import { FormEvent, useState } from "react";
 import { formatOrderDate, formatRupiah } from "@/lib/format";
@@ -78,7 +80,26 @@ type CurrentUser = {
   name: string;
   username: string;
   role: string;
+  isActive: boolean;
 };
+
+type UserAccount = CurrentUser & {
+  createdAt: string;
+  updatedAt: string;
+};
+
+type AuditLog = {
+  id: string;
+  userId: string | null;
+  username: string | null;
+  action: string;
+  entityType: string;
+  entityId: string;
+  metadata: unknown;
+  createdAt: string;
+};
+
+type ActiveTab = "kasir" | "menu" | "riwayat" | "pengguna" | "audit";
 
 type ReportRange = "today" | "yesterday" | "7days" | "14days" | "30days";
 
@@ -101,16 +122,22 @@ export function PosApp({
   initialProducts,
   initialCategories,
   initialOrders,
+  initialUsers,
+  initialAuditLogs,
   user,
 }: {
   initialProducts: Product[];
   initialCategories: Category[];
   initialOrders: Order[];
+  initialUsers: UserAccount[];
+  initialAuditLogs: AuditLog[];
   user: CurrentUser;
 }) {
   const [products, setProducts] = useState(initialProducts);
   const [categories, setCategories] = useState(initialCategories);
   const [orders, setOrders] = useState(initialOrders);
+  const [users, setUsers] = useState(initialUsers);
+  const [auditLogs, setAuditLogs] = useState(initialAuditLogs);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [activeCategoryId, setActiveCategoryId] = useState("all");
   const [query, setQuery] = useState("");
@@ -118,9 +145,7 @@ export function PosApp({
   const [orderType, setOrderType] = useState("Dine in");
   const [paymentMethod, setPaymentMethod] = useState("Tunai");
   const [cashReceived, setCashReceived] = useState("");
-  const [activeTab, setActiveTab] = useState<"kasir" | "menu" | "riwayat">(
-    "kasir",
-  );
+  const [activeTab, setActiveTab] = useState<ActiveTab>("kasir");
   const [reportRange, setReportRange] = useState<ReportRange>("today");
   const [lastOrder, setLastOrder] = useState<Order | null>(orders[0] ?? null);
   const [productForm, setProductForm] = useState({
@@ -135,6 +160,31 @@ export function PosApp({
   const [isSavingProduct, setIsSavingProduct] = useState(false);
   const [isSavingCategory, setIsSavingCategory] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [userForm, setUserForm] = useState({
+    name: "",
+    username: "",
+    password: "",
+    role: "cashier",
+  });
+  const [userPasswords, setUserPasswords] = useState<Record<string, string>>({});
+  const [isSavingUser, setIsSavingUser] = useState(false);
+  const canManageMenu = user.role === "owner" || user.role === "admin";
+  const canManageUsers = user.role === "owner" || user.role === "admin";
+  const canViewReports = user.role === "owner" || user.role === "admin";
+  const canVoidOrder = user.role === "owner" || user.role === "admin";
+  const tabs: { id: ActiveTab; label: string }[] = [
+    { id: "kasir", label: "Kasir" },
+    ...(canManageMenu ? [{ id: "menu" as ActiveTab, label: "Menu" }] : []),
+    ...(canViewReports
+      ? [{ id: "riwayat" as ActiveTab, label: "Riwayat & Laporan" }]
+      : []),
+    ...(canManageUsers
+      ? [
+          { id: "pengguna" as ActiveTab, label: "Pengguna" },
+          { id: "audit" as ActiveTab, label: "Audit" },
+        ]
+      : []),
+  ];
 
   const visibleProducts = products.filter((product) => {
     const matchesCategory =
@@ -503,6 +553,11 @@ export function PosApp({
   }
 
   async function deleteOrder(order: Order) {
+    if (!canVoidOrder) {
+      alert("Akses void transaksi hanya untuk admin/owner.");
+      return;
+    }
+
     const confirmed = window.confirm(
       `Batalkan transaksi ${order.orderNumber}? Transaksi tidak akan dihitung di laporan aktif.`,
     );
@@ -532,6 +587,77 @@ export function PosApp({
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
     window.location.href = "/login";
+  }
+
+  async function createUser(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (isSavingUser) return;
+    setIsSavingUser(true);
+
+    try {
+      const response = await fetch("/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(userForm),
+      });
+
+      if (!response.ok) {
+        alert(await getErrorMessage(response, "User belum bisa dibuat."));
+        return;
+      }
+
+      const createdUser = (await response.json()) as UserAccount;
+      setUsers((current) => [createdUser, ...current]);
+      setUserForm({ name: "", username: "", password: "", role: "cashier" });
+      refreshAuditLogs();
+    } finally {
+      setIsSavingUser(false);
+    }
+  }
+
+  async function updateUser(
+    target: UserAccount,
+    data: Partial<Pick<UserAccount, "name" | "username" | "role" | "isActive">> & {
+      password?: string;
+    },
+  ) {
+    const response = await fetch(`/api/users/${target.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      alert(await getErrorMessage(response, "User belum bisa diubah."));
+      return;
+    }
+
+    const updatedUser = (await response.json()) as UserAccount;
+    setUsers((current) =>
+      current.map((item) => (item.id === updatedUser.id ? updatedUser : item)),
+    );
+    refreshAuditLogs();
+  }
+
+  async function resetUserPassword(target: UserAccount) {
+    const password = userPasswords[target.id] || "";
+
+    if (password.length < 8) {
+      alert("Password minimal 8 karakter.");
+      return;
+    }
+
+    await updateUser(target, { password });
+    setUserPasswords((current) => ({ ...current, [target.id]: "" }));
+  }
+
+  async function refreshAuditLogs() {
+    if (!canManageUsers) return;
+
+    const response = await fetch("/api/audit-logs");
+    if (!response.ok) return;
+    const logs = (await response.json()) as AuditLog[];
+    setAuditLogs(logs);
   }
 
   return (
@@ -579,15 +705,11 @@ export function PosApp({
           </div>
         </header>
 
-        <nav className="mb-4 flex gap-2">
-          {[
-            ["kasir", "Kasir"],
-            ["menu", "Menu"],
-            ["riwayat", "Riwayat & Laporan"],
-          ].map(([id, label]) => (
+        <nav className="mb-4 flex flex-wrap gap-2">
+          {tabs.map(({ id, label }) => (
             <button
               key={id}
-              onClick={() => setActiveTab(id as "kasir" | "menu" | "riwayat")}
+              onClick={() => setActiveTab(id)}
               className={`h-12 rounded-[8px] px-5 text-base font-bold ${
                 activeTab === id
                   ? "bg-[#28451f] text-[#fffdf5]"
@@ -805,7 +927,7 @@ export function PosApp({
           </div>
         )}
 
-        {activeTab === "menu" && (
+        {activeTab === "menu" && canManageMenu && (
           <section className="grid gap-4 lg:grid-cols-[420px_1fr]">
             <div className="space-y-4">
               <form
@@ -982,7 +1104,7 @@ export function PosApp({
           </section>
         )}
 
-        {activeTab === "riwayat" && (
+        {activeTab === "riwayat" && canViewReports && (
           <section className="space-y-4">
             <div className="rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -1057,10 +1179,211 @@ export function PosApp({
                 order={lastOrder}
                 onEdit={startEditOrder}
                 onDelete={deleteOrder}
+                canEdit={canVoidOrder}
               />
             </div>
 
             <SoldProductsReport products={soldProducts} />
+          </section>
+        )}
+
+        {activeTab === "pengguna" && canManageUsers && (
+          <section className="grid gap-4 lg:grid-cols-[420px_1fr]">
+            <form
+              onSubmit={createUser}
+              className="rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4"
+            >
+              <h2 className="mb-4 flex items-center gap-2 text-xl font-black">
+                <Users size={22} /> Tambah User
+              </h2>
+              <FormInput
+                label="Nama"
+                value={userForm.name}
+                onChange={(value) =>
+                  setUserForm((current) => ({ ...current, name: value }))
+                }
+              />
+              <FormInput
+                label="Username"
+                value={userForm.username}
+                onChange={(value) =>
+                  setUserForm((current) => ({ ...current, username: value }))
+                }
+              />
+              <FormInput
+                label="Password awal"
+                type="password"
+                value={userForm.password}
+                onChange={(value) =>
+                  setUserForm((current) => ({ ...current, password: value }))
+                }
+              />
+              <label className="mb-3 block">
+                <span className="mb-1 block text-sm font-bold text-[#68705c]">
+                  Role
+                </span>
+                <select
+                  value={userForm.role}
+                  onChange={(event) =>
+                    setUserForm((current) => ({
+                      ...current,
+                      role: event.target.value,
+                    }))
+                  }
+                  className="h-12 w-full rounded-[8px] border border-[#d6c9aa] bg-white px-3 outline-none"
+                >
+                  <option value="cashier">Kasir</option>
+                  <option value="admin">Admin</option>
+                  <option value="owner">Owner</option>
+                </select>
+              </label>
+              <button
+                disabled={isSavingUser}
+                className="h-12 w-full rounded-[8px] bg-[#28451f] font-black text-white disabled:opacity-50"
+              >
+                {isSavingUser ? "Menyimpan..." : "Simpan User"}
+              </button>
+            </form>
+
+            <div className="rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4">
+              <h2 className="mb-4 text-xl font-black">Daftar User</h2>
+              <div className="space-y-3">
+                {users.map((account) => (
+                  <div
+                    key={account.id}
+                    className="rounded-[8px] border border-[#e1d5b8] bg-white p-3"
+                  >
+                    <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="font-black">{account.name}</p>
+                        <p className="text-sm font-bold text-[#68705c]">
+                          @{account.username} - {roleLabel(account.role)}
+                        </p>
+                      </div>
+                      <span
+                        className={`rounded-[8px] px-3 py-1 text-sm font-black ${
+                          account.isActive
+                            ? "bg-[#eef3df] text-[#28451f]"
+                            : "bg-[#f5ded5] text-[#a13f28]"
+                        }`}
+                      >
+                        {account.isActive ? "Aktif" : "Nonaktif"}
+                      </span>
+                    </div>
+
+                    <div className="grid gap-2 md:grid-cols-[1fr_160px_150px]">
+                      <input
+                        value={account.name}
+                        onChange={(event) =>
+                          setUsers((current) =>
+                            current.map((item) =>
+                              item.id === account.id
+                                ? { ...item, name: event.target.value }
+                                : item,
+                            ),
+                          )
+                        }
+                        onBlur={(event) =>
+                          updateUser(account, { name: event.target.value })
+                        }
+                        className="h-11 rounded-[8px] border border-[#d6c9aa] px-3 outline-none"
+                      />
+                      <select
+                        value={account.role}
+                        onChange={(event) =>
+                          updateUser(account, { role: event.target.value })
+                        }
+                        className="h-11 rounded-[8px] border border-[#d6c9aa] bg-white px-3 outline-none"
+                      >
+                        <option value="cashier">Kasir</option>
+                        <option value="admin">Admin</option>
+                        <option value="owner">Owner</option>
+                      </select>
+                      <button
+                        type="button"
+                        disabled={account.id === user.id}
+                        onClick={() =>
+                          updateUser(account, { isActive: !account.isActive })
+                        }
+                        className="h-11 rounded-[8px] bg-[#f4efe2] px-3 font-black text-[#28451f] disabled:opacity-50"
+                      >
+                        {account.isActive ? "Nonaktifkan" : "Aktifkan"}
+                      </button>
+                    </div>
+
+                    <div className="mt-2 grid gap-2 md:grid-cols-[1fr_150px]">
+                      <input
+                        type="password"
+                        value={userPasswords[account.id] ?? ""}
+                        onChange={(event) =>
+                          setUserPasswords((current) => ({
+                            ...current,
+                            [account.id]: event.target.value,
+                          }))
+                        }
+                        placeholder="Password baru"
+                        className="h-11 rounded-[8px] border border-[#d6c9aa] px-3 outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => resetUserPassword(account)}
+                        className="h-11 rounded-[8px] bg-[#28451f] px-3 font-black text-white"
+                      >
+                        Reset Password
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {activeTab === "audit" && canManageUsers && (
+          <section className="rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <h2 className="flex items-center gap-2 text-xl font-black">
+                <ShieldCheck size={22} /> Audit Aktivitas
+              </h2>
+              <button
+                type="button"
+                onClick={refreshAuditLogs}
+                className="h-11 rounded-[8px] bg-[#eef3df] px-4 font-black text-[#28451f]"
+              >
+                Refresh
+              </button>
+            </div>
+            <div className="overflow-hidden rounded-[8px] border border-[#e1d5b8]">
+              <table className="w-full border-collapse bg-white text-left text-sm">
+                <thead className="bg-[#eef3df] uppercase text-[#68705c]">
+                  <tr>
+                    <th className="p-3">Waktu</th>
+                    <th className="p-3">User</th>
+                    <th className="p-3">Aksi</th>
+                    <th className="p-3">Data</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {auditLogs.map((log) => (
+                    <tr key={log.id} className="border-t border-[#e1d5b8]">
+                      <td className="p-3 font-bold">{formatOrderDate(log.createdAt)}</td>
+                      <td className="p-3">{log.username ?? "-"}</td>
+                      <td className="p-3 font-black">{log.action}</td>
+                      <td className="p-3 text-[#68705c]">
+                        {formatAuditMetadata(log.metadata)}
+                      </td>
+                    </tr>
+                  ))}
+                  {auditLogs.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="p-6 text-center font-bold text-[#68705c]">
+                        Belum ada aktivitas tercatat.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </section>
         )}
       </section>
@@ -1085,10 +1408,12 @@ function OrderDetail({
   order,
   onEdit,
   onDelete,
+  canEdit,
 }: {
   order: Order | null;
   onEdit: (order: Order) => void;
   onDelete: (order: Order) => void;
+  canEdit: boolean;
 }) {
   if (!order) {
     return (
@@ -1109,18 +1434,22 @@ function OrderDetail({
           <p className="text-sm font-bold text-[#68705c]">{order.orderNumber}</p>
         </div>
         <div className="flex flex-wrap justify-end gap-2">
-          <button
-            onClick={() => onEdit(order)}
-            className="flex h-10 items-center gap-2 rounded-[8px] bg-[#f4efe2] px-3 text-sm font-black text-[#28451f]"
-          >
-            <Pencil size={16} /> Edit
-          </button>
-          <button
-            onClick={() => onDelete(order)}
-            className="h-10 rounded-[8px] bg-[#f5ded5] px-3 text-sm font-black text-[#a13f28]"
-          >
-            Void
-          </button>
+          {canEdit && (
+            <>
+              <button
+                onClick={() => onEdit(order)}
+                className="flex h-10 items-center gap-2 rounded-[8px] bg-[#f4efe2] px-3 text-sm font-black text-[#28451f]"
+              >
+                <Pencil size={16} /> Edit
+              </button>
+              <button
+                onClick={() => onDelete(order)}
+                className="h-10 rounded-[8px] bg-[#f5ded5] px-3 text-sm font-black text-[#a13f28]"
+              >
+                Void
+              </button>
+            </>
+          )}
           <button
             onClick={() => window.print()}
             className="flex h-10 items-center gap-2 rounded-[8px] bg-[#28451f] px-3 text-sm font-black text-white"
@@ -1303,11 +1632,13 @@ function CategorySelect({
 
 function FormInput({
   label,
+  type = "text",
   value,
   inputMode,
   onChange,
 }: {
   label: string;
+  type?: string;
   value: string;
   inputMode?: "numeric";
   onChange: (value: string) => void;
@@ -1316,6 +1647,7 @@ function FormInput({
     <label className="mb-3 block">
       <span className="mb-1 block text-sm font-bold text-[#68705c]">{label}</span>
       <input
+        type={type}
         value={value}
         inputMode={inputMode}
         onChange={(event) => onChange(event.target.value)}
@@ -1454,4 +1786,19 @@ async function getErrorMessage(response: Response, fallback: string) {
   } catch {
     return fallback;
   }
+}
+
+function roleLabel(role: string) {
+  if (role === "owner") return "Owner";
+  if (role === "admin") return "Admin";
+  return "Kasir";
+}
+
+function formatAuditMetadata(metadata: unknown) {
+  if (!metadata || typeof metadata !== "object") return "-";
+
+  const record = metadata as Record<string, unknown>;
+  return Object.entries(record)
+    .map(([key, value]) => `${key}: ${String(value)}`)
+    .join(", ");
 }

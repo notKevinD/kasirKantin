@@ -37,7 +37,7 @@ export async function POST(request: Request) {
 
   const user = await prisma.user.findUnique({ where: { username } });
 
-  if (!user || !verifyPassword(password, user.passwordHash)) {
+  if (!user || !user.isActive || !verifyPassword(password, user.passwordHash)) {
     recordFailedLogin(rateLimitKey);
     return NextResponse.json(
       { message: "Username atau password salah." },

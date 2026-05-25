@@ -79,8 +79,10 @@ const products = [
 ];
 
 async function main() {
+  const adminUsername = process.env.ADMIN_USERNAME || "admin";
+  const adminName = process.env.ADMIN_NAME || "Admin Joyful";
   const existingAdmin = await prisma.user.findUnique({
-    where: { username: "admin" },
+    where: { username: adminUsername },
   });
   const adminPassword = process.env.ADMIN_PASSWORD;
 
@@ -89,16 +91,17 @@ async function main() {
   }
 
   await prisma.user.upsert({
-    where: { username: "admin" },
+    where: { username: adminUsername },
     update: {
-      name: "Admin Joyful",
-      role: "admin",
+      name: adminName,
+      isActive: true,
     },
     create: {
-      name: "Admin Joyful",
-      username: "admin",
+      name: adminName,
+      username: adminUsername,
       passwordHash: hashPassword(adminPassword || "admin123"),
-      role: "admin",
+      role: "owner",
+      isActive: true,
     },
   });
 
