@@ -64,6 +64,11 @@ type Order = {
   orderType: string;
   status: string;
   paymentMethod: string;
+  customerName: string | null;
+  tableNumber: string | null;
+  cashierName: string | null;
+  discount: number;
+  voidReason: string | null;
   total: number;
   cashReceived: number | null;
   changeAmount: number | null;
@@ -146,6 +151,10 @@ export function PosApp({
   const [orderType, setOrderType] = useState("Dine in");
   const [paymentMethod, setPaymentMethod] = useState("Tunai");
   const [cashReceived, setCashReceived] = useState("");
+  const [customerName, setCustomerName] = useState("");
+  const [tableNumber, setTableNumber] = useState("");
+  const [discount, setDiscount] = useState("");
+  const [transactionQuery, setTransactionQuery] = useState("");
   const [activeTab, setActiveTab] = useState<ActiveTab>("kasir");
   const [reportRange, setReportRange] = useState<ReportRange>("today");
   const [customStartDate, setCustomStartDate] = useState(getDateInputValue(new Date()));
@@ -215,10 +224,12 @@ export function PosApp({
     );
   });
 
-  const cartTotal = cart.reduce(
+  const cartSubtotal = cart.reduce(
     (sum, item) => sum + item.unitPrice * item.quantity,
     0,
   );
+  const discountAmount = Math.max(Number(discount || 0), 0);
+  const cartTotal = Math.max(cartSubtotal - discountAmount, 0);
   const changeAmount =
     paymentMethod === "Tunai"
       ? Math.max(Number(cashReceived || 0) - cartTotal, 0)
@@ -243,6 +254,9 @@ export function PosApp({
   const reportQrisSales = reportOrders
     .filter((order) => order.paymentMethod === "QRIS manual")
     .reduce((sum, order) => sum + order.total, 0);
+  const visibleReportOrders = reportOrders.filter((order) =>
+    matchesTransactionQuery(order, transactionQuery),
+  );
   const soldProducts = getSoldProducts(reportOrders);
 
   function addToCart(product: Product) {
@@ -355,6 +369,9 @@ export function PosApp({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             orderType,
+            customerName,
+            tableNumber,
+            discount: discountAmount,
             status: checkoutMode === "later" ? "in_progress" : "paid",
             paymentMethod:
               checkoutMode === "later" ? "Belum bayar" : paymentMethod,
@@ -393,6 +410,9 @@ export function PosApp({
       setPrintOrder(order);
       setCart([]);
       setCashReceived("");
+      setCustomerName("");
+      setTableNumber("");
+      setDiscount("");
       setEditingOrderId(null);
       setCheckoutMode("now");
       setIsOrderConfirmOpen(false);
@@ -667,6 +687,9 @@ export function PosApp({
     setCheckoutMode(nextCheckoutMode);
     setPaymentMethod(order.paymentMethod === "Belum bayar" ? "Tunai" : order.paymentMethod);
     setCashReceived(order.cashReceived === null ? "" : String(order.cashReceived));
+    setCustomerName(order.customerName ?? "");
+    setTableNumber(order.tableNumber ?? "");
+    setDiscount(order.discount ? String(order.discount) : "");
     setCart(
       order.items.map((item) => ({
         lineId: item.productId ?? item.id ?? crypto.randomUUID(),
@@ -684,6 +707,9 @@ export function PosApp({
     setEditingOrderId(null);
     setCart([]);
     setCashReceived("");
+    setCustomerName("");
+    setTableNumber("");
+    setDiscount("");
     setCheckoutMode("now");
   }
 
@@ -693,14 +719,17 @@ export function PosApp({
       return;
     }
 
-    const confirmed = window.confirm(
-      `Batalkan transaksi ${order.orderNumber}? Transaksi tidak akan dihitung di laporan aktif.`,
+    const reason = window.prompt(
+      `Alasan void transaksi ${order.orderNumber}?`,
+      order.voidReason ?? "",
     );
 
-    if (!confirmed) return;
+    if (!reason?.trim()) return;
 
     const response = await fetch(`/api/orders/${order.id}`, {
       method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason }),
     });
 
     if (!response.ok) {
@@ -709,7 +738,9 @@ export function PosApp({
     }
 
     const nextOrders = orders.map((item) =>
-      item.id === order.id ? { ...item, status: "cancelled" } : item,
+      item.id === order.id
+        ? { ...item, status: "cancelled", voidReason: reason.trim() }
+        : item,
     );
     setOrders(nextOrders);
     setLastOrder(nextOrders.find((item) => item.status === "paid") ?? null);
@@ -812,6 +843,12 @@ export function PosApp({
     window.setTimeout(() => window.print(), 100);
   }
 
+  function printKitchenOrder(order: Order) {
+    setPrintMode("kitchen");
+    setPrintOrder(order);
+    window.setTimeout(() => window.print(), 100);
+  }
+
   return (
     <main
       className={`min-h-screen bg-[#f4efe2] text-[#24351f] ${
@@ -897,9 +934,14 @@ export function PosApp({
                       className="rounded-[8px] border border-[#e1d5b8] bg-white p-3"
                     >
                       <div className="mb-2 flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="truncate font-black">{order.orderNumber}</p>
+                          <div className="min-w-0">
+                          <p className="truncate font-black">
+                            {order.tableNumber
+                              ? `Meja ${order.tableNumber}`
+                              : order.customerName || order.orderNumber}
+                          </p>
                           <p className="text-xs font-bold text-[#68705c]">
+                            {order.customerName ? `${order.customerName} - ` : ""}
                             {formatOrderDate(order.createdAt)}
                           </p>
                         </div>
@@ -910,13 +952,20 @@ export function PosApp({
                       <p className="mb-3 text-sm font-bold text-[#68705c]">
                         {order.items.length} jenis item - {order.orderType}
                       </p>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-3 gap-2">
                         <button
                           type="button"
                           onClick={() => startEditOrder(order, "later")}
                           className="h-10 rounded-[8px] bg-[#eef3df] text-sm font-black text-[#28451f]"
                         >
                           Tambah/Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => printKitchenOrder(order)}
+                          className="h-10 rounded-[8px] bg-[#f4efe2] text-sm font-black text-[#28451f]"
+                        >
+                          Kitchen
                         </button>
                         <button
                           type="button"
@@ -1032,6 +1081,21 @@ export function PosApp({
                 ))}
               </div>
 
+              <div className="mb-3 grid gap-2">
+                <input
+                  value={tableNumber}
+                  onChange={(event) => setTableNumber(event.target.value)}
+                  placeholder="Nomor meja"
+                  className="h-11 rounded-[8px] border border-[#d6c9aa] px-3 font-bold outline-none"
+                />
+                <input
+                  value={customerName}
+                  onChange={(event) => setCustomerName(event.target.value)}
+                  placeholder="Nama pelanggan"
+                  className="h-11 rounded-[8px] border border-[#d6c9aa] px-3 font-bold outline-none"
+                />
+              </div>
+
               <div className="min-h-[220px] space-y-3 pr-1">
                 {cart.length === 0 && (
                   <div className="grid min-h-full place-items-center rounded-[8px] border border-dashed border-[#c8b98f] px-3 text-center text-sm text-[#68705c] xl:text-base">
@@ -1083,9 +1147,22 @@ export function PosApp({
               </div>
 
               <div className="mt-3 shrink-0 space-y-2 border-t border-[#d6c9aa] pt-3">
-                <div className="flex items-center justify-between text-lg font-black">
-                  <span>Total</span>
-                  <span>{formatRupiah(cartTotal)}</span>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm font-bold text-[#68705c]">
+                    <span>Subtotal</span>
+                    <span>{formatRupiah(cartSubtotal)}</span>
+                  </div>
+                  <input
+                    value={discount}
+                    onChange={(event) => setDiscount(event.target.value)}
+                    inputMode="numeric"
+                    placeholder="Diskon"
+                    className="h-11 w-full rounded-[8px] border border-[#d6c9aa] px-3 font-bold outline-none"
+                  />
+                  <div className="flex items-center justify-between text-lg font-black">
+                    <span>Total</span>
+                    <span>{formatRupiah(cartTotal)}</span>
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <button
@@ -1458,16 +1535,27 @@ export function PosApp({
             <div className="grid gap-4">
               <div className="grid min-h-[440px] gap-4 lg:grid-cols-[minmax(0,1fr)_380px] xl:grid-cols-[minmax(0,1fr)_440px]">
                 <div className="flex min-h-[440px] min-w-0 flex-col overflow-hidden rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4">
-                <h2 className="mb-4 flex items-center gap-2 text-xl font-black">
-                  <ReceiptText size={22} /> Riwayat Transaksi
-                </h2>
+                <div className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-3">
+                  <h2 className="flex items-center gap-2 text-xl font-black">
+                    <ReceiptText size={22} /> Riwayat Transaksi
+                  </h2>
+                  <div className="flex h-11 min-w-[260px] flex-1 items-center gap-2 rounded-[8px] border border-[#d6c9aa] bg-white px-3 md:max-w-sm">
+                    <Search size={18} />
+                    <input
+                      value={transactionQuery}
+                      onChange={(event) => setTransactionQuery(event.target.value)}
+                      placeholder="Cari transaksi, menu, kasir..."
+                      className="h-full flex-1 bg-transparent outline-none"
+                    />
+                  </div>
+                </div>
                 <div className="min-h-0 space-y-3 overflow-y-auto pr-1">
-                  {reportOrders.length === 0 && (
+                  {visibleReportOrders.length === 0 && (
                     <div className="rounded-[8px] border border-dashed border-[#c8b98f] p-6 text-center font-bold text-[#68705c]">
                       Belum ada transaksi pada periode ini.
                     </div>
                   )}
-                  {reportOrders.map((order) => (
+                  {visibleReportOrders.map((order) => (
                     <button
                       key={order.id}
                       onClick={() => setLastOrder(order)}
@@ -1484,6 +1572,8 @@ export function PosApp({
                         </p>
                         <p className="mt-1 text-xs font-bold text-[#68705c]">
                           {order.items.length} jenis item
+                          {order.tableNumber ? ` - Meja ${order.tableNumber}` : ""}
+                          {order.cashierName ? ` - ${order.cashierName}` : ""}
                         </p>
                       </div>
                       <div className="text-right">
@@ -1971,6 +2061,10 @@ function OrderDetail({
         <DetailBox label="Jenis" value={order.orderType} />
         <DetailBox label="Pembayaran" value={order.paymentMethod} />
         <DetailBox label="Status" value={order.status === "paid" ? "Lunas" : order.status} />
+        <DetailBox label="Meja" value={order.tableNumber || "-"} />
+        <DetailBox label="Pelanggan" value={order.customerName || "-"} />
+        <DetailBox label="Kasir" value={order.cashierName || "-"} />
+        <DetailBox label="Void" value={order.voidReason || "-"} />
       </div>
 
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
@@ -1998,6 +2092,12 @@ function OrderDetail({
       </div>
 
       <div className="mt-4 shrink-0 space-y-2 border-t border-[#d6c9aa] pt-4">
+        {order.discount > 0 && (
+          <div className="flex justify-between text-sm font-bold text-[#68705c]">
+            <span>Diskon</span>
+            <span>{formatRupiah(order.discount)}</span>
+          </div>
+        )}
         <div className="flex justify-between text-lg font-black">
           <span>Total</span>
           <span>{formatRupiah(order.total)}</span>
@@ -2185,6 +2285,9 @@ function PrintableReceipt({
           <p>No: {order.orderNumber}</p>
           <p>{formatOrderDate(order.createdAt)}</p>
           <p>Jenis: {order.orderType}</p>
+          {order.tableNumber && <p>Meja: {order.tableNumber}</p>}
+          {order.customerName && <p>Pelanggan: {order.customerName}</p>}
+          {order.cashierName && <p>Kasir: {order.cashierName}</p>}
           <p>Status: Belum bayar</p>
           <div className="receipt-line" />
           {order.items.map((item) => (
@@ -2220,6 +2323,9 @@ function PrintableReceipt({
         <p>No: {order.orderNumber}</p>
         <p>{formatOrderDate(order.createdAt)}</p>
         <p>Jenis: {order.orderType}</p>
+        {order.tableNumber && <p>Meja: {order.tableNumber}</p>}
+        {order.customerName && <p>Pelanggan: {order.customerName}</p>}
+        {order.cashierName && <p>Kasir: {order.cashierName}</p>}
         <div className="receipt-line" />
         {order.items.map((item) => (
           <div key={item.id ?? item.productName} className="receipt-row">
@@ -2230,6 +2336,12 @@ function PrintableReceipt({
           </div>
         ))}
         <div className="receipt-line" />
+        {order.discount > 0 && (
+          <div className="receipt-row">
+            <span>Diskon</span>
+            <span>-{formatRupiah(order.discount)}</span>
+          </div>
+        )}
         <div className="receipt-row total">
           <span>Total</span>
           <span>{formatRupiah(order.total)}</span>
@@ -2272,6 +2384,26 @@ function getDateInputValue(date: Date) {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function matchesTransactionQuery(order: Order, query: string) {
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery) return true;
+
+  const searchable = [
+    order.orderNumber,
+    order.orderType,
+    order.paymentMethod,
+    order.customerName,
+    order.tableNumber,
+    order.cashierName,
+    ...order.items.map((item) => item.productName),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  return searchable.includes(normalizedQuery);
 }
 
 function getSoldProducts(orders: Order[]) {

@@ -39,6 +39,12 @@ export async function PATCH(
   const { id } = await context.params;
   const body = await request.json();
   const items = Array.isArray(body.items) ? (body.items as OrderItemInput[]) : [];
+  const cashier = session
+    ? await prisma.user.findUnique({
+        where: { id: session.userId },
+        select: { name: true },
+      })
+    : null;
 
   if (items.length === 0) {
     return NextResponse.json(
@@ -67,7 +73,9 @@ export async function PATCH(
       }
 
       const normalizedItems = normalizeItems(items);
-      const total = normalizedItems.reduce((sum, item) => sum + item.subtotal, 0);
+      const subtotal = normalizedItems.reduce((sum, item) => sum + item.subtotal, 0);
+      const discount = Math.max(Number(body.discount || 0), 0);
+      const total = Math.max(subtotal - discount, 0);
       const nextStatus = body.status === "in_progress" ? "in_progress" : "paid";
       const cashReceived =
         nextStatus === "in_progress" ||
@@ -87,6 +95,11 @@ export async function PATCH(
             nextStatus === "in_progress"
               ? "Belum bayar"
               : String(body.paymentMethod || "Tunai"),
+          customerName: body.customerName ? String(body.customerName).trim() : null,
+          tableNumber: body.tableNumber ? String(body.tableNumber).trim() : null,
+          cashierId: before.cashierId ?? session?.userId,
+          cashierName: before.cashierName ?? cashier?.name ?? session?.username,
+          discount,
           total,
           cashReceived,
           changeAmount:
@@ -148,11 +161,20 @@ export async function DELETE(
   const session = await getApiSession();
 
   const { id } = await context.params;
+  const body = await _request.json().catch(() => ({}));
+  const reason = String(body.reason || "").trim();
+
+  if (!reason) {
+    return NextResponse.json(
+      { message: "Alasan void wajib diisi." },
+      { status: 400 },
+    );
+  }
 
   await prisma.$transaction(async (tx) => {
     const order = await tx.order.update({
       where: { id },
-      data: { status: "cancelled" },
+      data: { status: "cancelled", voidReason: reason },
     });
 
     await tx.auditLog.create({
@@ -165,6 +187,7 @@ export async function DELETE(
         metadata: {
           orderNumber: order.orderNumber,
           total: order.total,
+          reason,
         },
       },
     });

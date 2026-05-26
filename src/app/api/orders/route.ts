@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireApiUser, requireSameOrigin } from "@/lib/api-auth";
+import { getApiSession, requireApiUser, requireSameOrigin } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 
 type OrderItemInput = {
@@ -35,9 +35,16 @@ export async function POST(request: Request) {
   if (authError) return authError;
   const originError = requireSameOrigin(request);
   if (originError) return originError;
+  const session = await getApiSession();
 
   const body = await request.json();
   const items = Array.isArray(body.items) ? (body.items as OrderItemInput[]) : [];
+  const cashier = session
+    ? await prisma.user.findUnique({
+        where: { id: session.userId },
+        select: { name: true },
+      })
+    : null;
 
   if (items.length === 0) {
     return NextResponse.json(
@@ -60,7 +67,9 @@ export async function POST(request: Request) {
     };
   });
 
-  const total = normalizedItems.reduce((sum, item) => sum + item.subtotal, 0);
+  const subtotal = normalizedItems.reduce((sum, item) => sum + item.subtotal, 0);
+  const discount = Math.max(Number(body.discount || 0), 0);
+  const total = Math.max(subtotal - discount, 0);
   const status = body.status === "in_progress" ? "in_progress" : "paid";
   const cashReceived =
     status === "in_progress" ||
@@ -79,6 +88,11 @@ export async function POST(request: Request) {
           ? "Belum bayar"
           : String(body.paymentMethod || "Tunai"),
       total,
+      customerName: body.customerName ? String(body.customerName).trim() : null,
+      tableNumber: body.tableNumber ? String(body.tableNumber).trim() : null,
+      cashierId: session?.userId,
+      cashierName: cashier?.name ?? session?.username,
+      discount,
       cashReceived,
       changeAmount: cashReceived === null ? null : Math.max(cashReceived - total, 0),
       note: body.note ? String(body.note) : null,

@@ -1,0 +1,11 @@
+ALTER TABLE "Order" ADD COLUMN "customerName" TEXT;
+ALTER TABLE "Order" ADD COLUMN "tableNumber" TEXT;
+ALTER TABLE "Order" ADD COLUMN "cashierId" TEXT;
+ALTER TABLE "Order" ADD COLUMN "cashierName" TEXT;
+ALTER TABLE "Order" ADD COLUMN "discount" INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "Order" ADD COLUMN "voidReason" TEXT;
+
+ALTER TABLE "Order"
+  ADD CONSTRAINT "Order_cashierId_fkey"
+  FOREIGN KEY ("cashierId") REFERENCES "User"("id")
+  ON DELETE SET NULL ON UPDATE CASCADE;

@@ -44,6 +44,7 @@ export async function GET(request: Request) {
   });
 
   const totalSales = orders.reduce((sum, order) => sum + order.total, 0);
+  const discountTotal = orders.reduce((sum, order) => sum + order.discount, 0);
   const cashSales = orders
     .filter((order) => order.paymentMethod === "Tunai")
     .reduce((sum, order) => sum + order.total, 0);
@@ -61,6 +62,7 @@ export async function GET(request: Request) {
         ["Mulai", formatOrderDate(start)],
         ["Sampai", formatOrderDate(new Date(end.getTime() - 1))],
         ["Total penjualan", totalSales],
+        ["Total diskon", discountTotal],
         ["Jumlah transaksi", orders.length],
         ["Tunai", cashSales],
         ["QRIS manual", qrisSales],
@@ -75,6 +77,10 @@ export async function GET(request: Request) {
           "Jenis",
           "Pembayaran",
           "Status",
+          "Meja",
+          "Pelanggan",
+          "Kasir",
+          "Diskon",
           "Total",
           "Uang Diterima",
           "Kembalian",
@@ -86,6 +92,10 @@ export async function GET(request: Request) {
           order.orderType,
           order.paymentMethod,
           order.status,
+          order.tableNumber ?? "",
+          order.customerName ?? "",
+          order.cashierName ?? "",
+          order.discount,
           order.total,
           order.cashReceived ?? "",
           order.changeAmount ?? "",

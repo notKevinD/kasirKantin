@@ -21,6 +21,7 @@ model User {
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  orders       Order[]
 }
 
 model Product {
@@ -53,12 +54,19 @@ model Order {
   orderType     String
   status        String      @default("paid")
   paymentMethod String
+  customerName  String?
+  tableNumber   String?
+  cashierId     String?
+  cashierName   String?
+  discount      Int         @default(0)
+  voidReason    String?
   total         Int
   cashReceived  Int?
   changeAmount  Int?
   note          String?
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
+  cashier       User?       @relation(fields: [cashierId], references: [id])
   items         OrderItem[]
 }
 
