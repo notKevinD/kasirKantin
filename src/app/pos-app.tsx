@@ -776,8 +776,8 @@ export function PosApp({
   }
 
   return (
-    <main className="min-h-screen bg-[#f4efe2] text-[#24351f] xl:h-screen xl:overflow-hidden">
-      <section className="app-shell mx-auto flex min-h-screen w-full max-w-[1440px] flex-col px-5 py-4 xl:h-screen xl:min-h-0">
+    <main className="min-h-screen bg-[#f4efe2] text-[#24351f] lg:h-screen lg:overflow-hidden">
+      <section className="app-shell mx-auto flex min-h-screen w-full max-w-[1440px] flex-col px-5 py-4 lg:h-screen lg:min-h-0">
         <header className="mb-4 flex shrink-0 flex-col gap-4 rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] px-4 py-3 shadow-sm xl:flex-row xl:items-center xl:justify-between">
           <div className="flex items-center gap-3">
             <Image
@@ -837,15 +837,15 @@ export function PosApp({
         </nav>
 
         {activeTab === "kasir" && (
-          <div className="grid flex-1 gap-4 xl:min-h-0 xl:grid-cols-[280px_minmax(0,1fr)_420px] xl:overflow-hidden">
-            <section className="min-w-0 rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4 xl:flex xl:min-h-0 xl:flex-col xl:overflow-hidden">
+          <div className="grid flex-1 gap-3 lg:min-h-0 lg:grid-cols-[210px_minmax(0,1fr)_330px] lg:overflow-hidden xl:gap-4 xl:grid-cols-[280px_minmax(0,1fr)_420px]">
+            <section className="min-w-0 rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-3 lg:flex lg:min-h-0 lg:flex-col lg:overflow-hidden xl:p-4">
               <h2 className="mb-3 text-lg font-black">Transaksi Berjalan</h2>
               {inProgressOrders.length === 0 ? (
                 <div className="grid min-h-32 place-items-center rounded-[8px] border border-dashed border-[#c8b98f] px-3 text-center text-sm font-bold text-[#68705c]">
                   Belum ada pesanan dine in yang belum bayar.
                 </div>
               ) : (
-                <div className="space-y-3 xl:min-h-0 xl:flex-1 xl:overflow-y-auto xl:pr-1">
+                <div className="space-y-3 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-1">
                   {inProgressOrders.map((order) => (
                     <div
                       key={order.id}
@@ -887,7 +887,7 @@ export function PosApp({
               )}
             </section>
 
-            <section className="min-w-0 rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4 xl:flex xl:min-h-0 xl:flex-col xl:overflow-hidden">
+            <section className="min-w-0 rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-3 lg:flex lg:min-h-0 lg:flex-col lg:overflow-hidden xl:p-4">
               <div className="mb-4 flex shrink-0 flex-wrap items-center gap-3">
                 <div className="flex h-12 min-w-[280px] flex-1 items-center gap-2 rounded-[8px] border border-[#d6c9aa] bg-white px-3">
                   <Search size={20} />
@@ -916,7 +916,7 @@ export function PosApp({
               </div>
 
               <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto pr-1">
-                <div className="grid min-w-0 grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3">
+                <div className="grid min-w-0 grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3 xl:grid-cols-[repeat(auto-fill,minmax(180px,1fr))]">
                 {visibleProducts.map((product) => (
                   <button
                     key={product.id}
@@ -955,7 +955,7 @@ export function PosApp({
               </div>
             </section>
 
-            <aside className="min-w-0 rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4 xl:flex xl:h-full xl:min-h-0 xl:flex-col xl:overflow-hidden">
+            <aside className="min-w-0 rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-3 lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:overflow-hidden xl:p-4">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="flex items-center gap-2 text-xl font-black">
                   <ShoppingCart size={22} />{" "}
@@ -985,7 +985,7 @@ export function PosApp({
                 ))}
               </div>
 
-              <div className="h-[220px] min-h-[180px] space-y-3 overflow-y-auto pr-1 xl:flex-none 2xl:h-[300px]">
+              <div className="h-[220px] min-h-[180px] space-y-3 overflow-y-auto pr-1 lg:flex-none 2xl:h-[300px]">
                 {cart.length === 0 && (
                   <div className="grid min-h-full place-items-center rounded-[8px] border border-dashed border-[#c8b98f] px-3 text-center text-[#68705c]">
                     Pilih menu untuk mulai mencatat pesanan.
