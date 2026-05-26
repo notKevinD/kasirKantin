@@ -18,7 +18,7 @@ export default async function Home() {
     prisma.order.findMany({
       include: { items: true },
       orderBy: { createdAt: "desc" },
-      take: 50,
+      take: 1000,
     }),
     canManage
       ? prisma.user.findMany({

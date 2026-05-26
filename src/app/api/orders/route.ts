@@ -61,8 +61,11 @@ export async function POST(request: Request) {
   });
 
   const total = normalizedItems.reduce((sum, item) => sum + item.subtotal, 0);
+  const status = body.status === "in_progress" ? "in_progress" : "paid";
   const cashReceived =
-    body.cashReceived === null || body.cashReceived === undefined
+    status === "in_progress" ||
+    body.cashReceived === null ||
+    body.cashReceived === undefined
       ? null
       : Number(body.cashReceived);
 
@@ -70,7 +73,11 @@ export async function POST(request: Request) {
     data: {
       orderNumber: makeOrderNumber(),
       orderType: String(body.orderType || "Dine in"),
-      paymentMethod: String(body.paymentMethod || "Tunai"),
+      status,
+      paymentMethod:
+        status === "in_progress"
+          ? "Belum bayar"
+          : String(body.paymentMethod || "Tunai"),
       total,
       cashReceived,
       changeAmount: cashReceived === null ? null : Math.max(cashReceived - total, 0),

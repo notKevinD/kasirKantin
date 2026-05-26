@@ -6,6 +6,7 @@ import {
   BarChart3,
   CalendarDays,
   CreditCard,
+  FileSpreadsheet,
   Pencil,
   Minus,
   Plus,
@@ -19,6 +20,11 @@ import {
 } from "lucide-react";
 import { FormEvent, useState } from "react";
 import { formatOrderDate, formatRupiah } from "@/lib/format";
+import {
+  getReportRangeWindow,
+  reportRanges,
+  type ReportRange,
+} from "@/lib/report-range";
 
 type Product = {
   id: string;
@@ -101,16 +107,6 @@ type AuditLog = {
 
 type ActiveTab = "kasir" | "menu" | "riwayat" | "pengguna" | "audit";
 
-type ReportRange = "today" | "yesterday" | "7days" | "14days" | "30days";
-
-const reportRanges: { id: ReportRange; label: string }[] = [
-  { id: "today", label: "Hari ini" },
-  { id: "yesterday", label: "Kemarin" },
-  { id: "7days", label: "7 hari" },
-  { id: "14days", label: "14 hari" },
-  { id: "30days", label: "30 hari" },
-];
-
 const emptyProductForm = {
   name: "",
   categoryId: "",
@@ -147,7 +143,12 @@ export function PosApp({
   const [cashReceived, setCashReceived] = useState("");
   const [activeTab, setActiveTab] = useState<ActiveTab>("kasir");
   const [reportRange, setReportRange] = useState<ReportRange>("today");
-  const [lastOrder, setLastOrder] = useState<Order | null>(orders[0] ?? null);
+  const [customStartDate, setCustomStartDate] = useState(getDateInputValue(new Date()));
+  const [customEndDate, setCustomEndDate] = useState(getDateInputValue(new Date()));
+  const [checkoutMode, setCheckoutMode] = useState<"now" | "later">("now");
+  const [lastOrder, setLastOrder] = useState<Order | null>(
+    orders.find((order) => order.status === "paid") ?? null,
+  );
   const [productForm, setProductForm] = useState({
     ...emptyProductForm,
     categoryId: initialCategories[0]?.id ?? "",
@@ -160,6 +161,7 @@ export function PosApp({
   const [isSavingProduct, setIsSavingProduct] = useState(false);
   const [isSavingCategory, setIsSavingCategory] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [isOrderConfirmOpen, setIsOrderConfirmOpen] = useState(false);
   const [userForm, setUserForm] = useState({
     name: "",
     username: "",
@@ -212,16 +214,17 @@ export function PosApp({
       ? Math.max(Number(cashReceived || 0) - cartTotal, 0)
       : 0;
 
-  const activeOrders = orders.filter((order) => order.status !== "cancelled");
-  const todayOrders = activeOrders.filter((order) =>
-    isOrderInRange(order, "today"),
+  const paidOrders = orders.filter((order) => order.status === "paid");
+  const inProgressOrders = orders.filter((order) => order.status === "in_progress");
+  const todayOrders = paidOrders.filter((order) =>
+    isOrderInRange(order, "today", customStartDate, customEndDate),
   );
   const todaySales = todayOrders.reduce((sum, order) => sum + order.total, 0);
   const qrisSales = todayOrders
     .filter((order) => order.paymentMethod === "QRIS manual")
     .reduce((sum, order) => sum + order.total, 0);
-  const reportOrders = activeOrders.filter((order) =>
-    isOrderInRange(order, reportRange),
+  const reportOrders = paidOrders.filter((order) =>
+    isOrderInRange(order, reportRange, customStartDate, customEndDate),
   );
   const reportSales = reportOrders.reduce((sum, order) => sum + order.total, 0);
   const reportCashSales = reportOrders
@@ -280,10 +283,30 @@ export function PosApp({
     );
   }
 
+  function requestOrderConfirmation() {
+    if (isSavingOrder) return;
+    if (cart.length === 0) return;
+
+    if (
+      checkoutMode === "now" &&
+      paymentMethod === "Tunai" &&
+      Number(cashReceived || 0) < cartTotal
+    ) {
+      alert("Uang diterima masih kurang dari total belanja.");
+      return;
+    }
+
+    setIsOrderConfirmOpen(true);
+  }
+
   async function submitOrder() {
     if (isSavingOrder) return;
     if (cart.length === 0) return;
-    if (paymentMethod === "Tunai" && Number(cashReceived || 0) < cartTotal) {
+    if (
+      checkoutMode === "now" &&
+      paymentMethod === "Tunai" &&
+      Number(cashReceived || 0) < cartTotal
+    ) {
       alert("Uang diterima masih kurang dari total belanja.");
       return;
     }
@@ -298,9 +321,13 @@ export function PosApp({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             orderType,
-            paymentMethod,
+            status: checkoutMode === "later" ? "in_progress" : "paid",
+            paymentMethod:
+              checkoutMode === "later" ? "Belum bayar" : paymentMethod,
             cashReceived:
-              paymentMethod === "Tunai" ? Number(cashReceived) : null,
+              checkoutMode === "now" && paymentMethod === "Tunai"
+                ? Number(cashReceived)
+                : null,
             items: cart.map((item) => ({
               productId: item.productId,
               productName: item.productName,
@@ -323,11 +350,16 @@ export function PosApp({
           ? current.map((item) => (item.id === order.id ? order : item))
           : [order, ...current],
       );
-      setLastOrder(order);
+      setLastOrder((current) => (order.status === "paid" ? order : current));
       setCart([]);
       setCashReceived("");
       setEditingOrderId(null);
-      window.setTimeout(() => window.print(), 350);
+      setCheckoutMode("now");
+      setIsOrderConfirmOpen(false);
+
+      if (order.status === "paid") {
+        window.setTimeout(() => window.print(), 350);
+      }
     } finally {
       setIsSavingOrder(false);
     }
@@ -562,15 +594,35 @@ export function PosApp({
   }
 
   function changeReportRange(range: ReportRange) {
-    const nextOrders = activeOrders.filter((order) => isOrderInRange(order, range));
+    const nextOrders = paidOrders.filter((order) =>
+      isOrderInRange(order, range, customStartDate, customEndDate),
+    );
     setReportRange(range);
     setLastOrder(nextOrders[0] ?? null);
   }
 
-  function startEditOrder(order: Order) {
+  function changeCustomReportDate(type: "start" | "end", value: string) {
+    const nextStartDate = type === "start" ? value : customStartDate;
+    const nextEndDate = type === "end" ? value : customEndDate;
+
+    setCustomStartDate(nextStartDate);
+    setCustomEndDate(nextEndDate);
+
+    if (reportRange === "custom") {
+      const nextOrders = paidOrders.filter((order) =>
+        isOrderInRange(order, "custom", nextStartDate, nextEndDate),
+      );
+      setLastOrder(nextOrders[0] ?? null);
+    }
+  }
+
+  function startEditOrder(order: Order, mode?: "now" | "later") {
     setEditingOrderId(order.id);
     setOrderType(order.orderType);
-    setPaymentMethod(order.paymentMethod);
+    const nextCheckoutMode =
+      mode ?? (order.status === "in_progress" ? "later" : "now");
+    setCheckoutMode(nextCheckoutMode);
+    setPaymentMethod(order.paymentMethod === "Belum bayar" ? "Tunai" : order.paymentMethod);
     setCashReceived(order.cashReceived === null ? "" : String(order.cashReceived));
     setCart(
       order.items.map((item) => ({
@@ -589,6 +641,7 @@ export function PosApp({
     setEditingOrderId(null);
     setCart([]);
     setCashReceived("");
+    setCheckoutMode("now");
   }
 
   async function deleteOrder(order: Order) {
@@ -616,7 +669,7 @@ export function PosApp({
       item.id === order.id ? { ...item, status: "cancelled" } : item,
     );
     setOrders(nextOrders);
-    setLastOrder(nextOrders.find((item) => item.status !== "cancelled") ?? null);
+    setLastOrder(nextOrders.find((item) => item.status === "paid") ?? null);
 
     if (editingOrderId === order.id) {
       cancelEditOrder();
@@ -697,6 +750,17 @@ export function PosApp({
     if (!response.ok) return;
     const logs = (await response.json()) as AuditLog[];
     setAuditLogs(logs);
+  }
+
+  function exportReportExcel() {
+    const params = new URLSearchParams({ range: reportRange });
+
+    if (reportRange === "custom") {
+      params.set("startDate", customStartDate);
+      params.set("endDate", customEndDate);
+    }
+
+    window.location.href = `/api/reports/export?${params.toString()}`;
   }
 
   return (
@@ -789,6 +853,51 @@ export function PosApp({
                   ))}
                 </div>
               </div>
+
+              {inProgressOrders.length > 0 && (
+                <div className="mb-4 rounded-[8px] border border-[#d6c9aa] bg-[#fff8ec] p-3">
+                  <h2 className="mb-3 text-lg font-black">Transaksi Berjalan</h2>
+                  <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                    {inProgressOrders.map((order) => (
+                      <div
+                        key={order.id}
+                        className="rounded-[8px] border border-[#e1d5b8] bg-white p-3"
+                      >
+                        <div className="mb-2 flex items-start justify-between gap-3">
+                          <div>
+                            <p className="font-black">{order.orderNumber}</p>
+                            <p className="text-sm font-bold text-[#68705c]">
+                              {formatOrderDate(order.createdAt)}
+                            </p>
+                          </div>
+                          <p className="font-black text-[#d85f32]">
+                            {formatRupiah(order.total)}
+                          </p>
+                        </div>
+                        <p className="mb-3 text-sm font-bold text-[#68705c]">
+                          {order.items.length} jenis item - {order.orderType}
+                        </p>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => startEditOrder(order, "later")}
+                            className="h-10 rounded-[8px] bg-[#eef3df] text-sm font-black text-[#28451f]"
+                          >
+                            Tambah/Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => startEditOrder(order, "now")}
+                            className="h-10 rounded-[8px] bg-[#28451f] text-sm font-black text-white"
+                          >
+                            Bayar
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">
                 {visibleProducts.map((product) => (
@@ -915,6 +1024,29 @@ export function PosApp({
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <button
+                    onClick={() => setCheckoutMode("now")}
+                    className={`h-12 rounded-[8px] font-bold ${
+                      checkoutMode === "now"
+                        ? "bg-[#28451f] text-white"
+                        : "bg-[#eef3df]"
+                    }`}
+                  >
+                    Bayar sekarang
+                  </button>
+                  <button
+                    onClick={() => setCheckoutMode("later")}
+                    className={`h-12 rounded-[8px] font-bold ${
+                      checkoutMode === "later"
+                        ? "bg-[#28451f] text-white"
+                        : "bg-[#eef3df]"
+                    }`}
+                  >
+                    Bayar nanti
+                  </button>
+                </div>
+                {checkoutMode === "now" && (
+                  <div className="grid grid-cols-2 gap-2">
+                  <button
                     onClick={() => setPaymentMethod("Tunai")}
                     className={`flex h-12 items-center justify-center gap-2 rounded-[8px] font-bold ${
                       paymentMethod === "Tunai"
@@ -934,8 +1066,9 @@ export function PosApp({
                   >
                     <CreditCard size={18} /> QRIS
                   </button>
-                </div>
-                {paymentMethod === "Tunai" && (
+                  </div>
+                )}
+                {checkoutMode === "now" && paymentMethod === "Tunai" && (
                   <div>
                     <input
                       value={cashReceived}
@@ -950,7 +1083,7 @@ export function PosApp({
                   </div>
                 )}
                 <button
-                  onClick={submitOrder}
+                  onClick={requestOrderConfirmation}
                   disabled={cart.length === 0 || isSavingOrder}
                   className="flex h-14 w-full items-center justify-center gap-2 rounded-[8px] bg-[#28451f] text-lg font-black text-white disabled:opacity-50"
                 >
@@ -958,7 +1091,11 @@ export function PosApp({
                   {isSavingOrder
                     ? "Menyimpan..."
                     : editingOrderId
-                    ? "Simpan Perubahan & Cetak"
+                    ? checkoutMode === "later"
+                      ? "Simpan Transaksi Berjalan"
+                      : "Simpan Perubahan & Cetak"
+                    : checkoutMode === "later"
+                    ? "Simpan Pesanan"
                     : "Simpan & Cetak Nota"}
                 </button>
               </div>
@@ -1184,20 +1321,59 @@ export function PosApp({
                 <h2 className="flex items-center gap-2 text-xl font-black">
                   <CalendarDays size={22} /> Periode Laporan
                 </h2>
-                <div className="flex flex-wrap gap-2">
-                  {reportRanges.map((range) => (
-                    <button
-                      key={range.id}
-                      onClick={() => changeReportRange(range.id)}
-                      className={`h-11 rounded-[8px] px-4 text-sm font-black ${
-                        reportRange === range.id
-                          ? "bg-[#28451f] text-white"
-                          : "bg-[#eef3df] text-[#28451f]"
-                      }`}
-                    >
-                      {range.label}
-                    </button>
-                  ))}
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex flex-wrap gap-2">
+                    {reportRanges.map((range) => (
+                      <button
+                        key={range.id}
+                        onClick={() => changeReportRange(range.id)}
+                        className={`h-11 rounded-[8px] px-4 text-sm font-black ${
+                          reportRange === range.id
+                            ? "bg-[#28451f] text-white"
+                            : "bg-[#eef3df] text-[#28451f]"
+                        }`}
+                      >
+                        {range.label}
+                      </button>
+                    ))}
+                  </div>
+                  {reportRange === "custom" && (
+                    <div className="grid w-full gap-2 sm:w-auto sm:grid-cols-[150px_150px]">
+                      <label className="block">
+                        <span className="mb-1 block text-xs font-bold uppercase text-[#68705c]">
+                          Dari
+                        </span>
+                        <input
+                          type="date"
+                          value={customStartDate}
+                          onChange={(event) =>
+                            changeCustomReportDate("start", event.target.value)
+                          }
+                          className="h-11 w-full rounded-[8px] border border-[#d6c9aa] bg-white px-3 font-bold outline-none"
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="mb-1 block text-xs font-bold uppercase text-[#68705c]">
+                          Sampai
+                        </span>
+                        <input
+                          type="date"
+                          value={customEndDate}
+                          onChange={(event) =>
+                            changeCustomReportDate("end", event.target.value)
+                          }
+                          className="h-11 w-full rounded-[8px] border border-[#d6c9aa] bg-white px-3 font-bold outline-none"
+                        />
+                      </label>
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={exportReportExcel}
+                    className="flex h-11 items-center gap-2 rounded-[8px] bg-[#d85f32] px-4 text-sm font-black text-white"
+                  >
+                    <FileSpreadsheet size={18} /> Export Excel
+                  </button>
                 </div>
               </div>
               <div className="grid gap-3 md:grid-cols-4">
@@ -1461,6 +1637,27 @@ export function PosApp({
         )}
       </section>
 
+      <OrderConfirmationModal
+        isOpen={isOrderConfirmOpen}
+        isSaving={isSavingOrder}
+        isEditing={Boolean(editingOrderId)}
+        cart={cart}
+        checkoutMode={checkoutMode}
+        orderType={orderType}
+        paymentMethod={checkoutMode === "later" ? "Belum bayar" : paymentMethod}
+        cashReceived={
+          checkoutMode === "now" && paymentMethod === "Tunai"
+            ? Number(cashReceived || 0)
+            : null
+        }
+        changeAmount={
+          checkoutMode === "now" && paymentMethod === "Tunai" ? changeAmount : null
+        }
+        total={cartTotal}
+        onCheckoutModeChange={setCheckoutMode}
+        onCancel={() => setIsOrderConfirmOpen(false)}
+        onConfirm={submitOrder}
+      />
       <PrintableReceipt order={lastOrder} />
     </main>
   );
@@ -1473,6 +1670,154 @@ function Summary({ label, value }: { label: string; value: string }) {
         {label}
       </p>
       <p className="mt-1 text-lg font-black leading-tight">{value}</p>
+    </div>
+  );
+}
+
+function OrderConfirmationModal({
+  isOpen,
+  isSaving,
+  isEditing,
+  cart,
+  checkoutMode,
+  orderType,
+  paymentMethod,
+  cashReceived,
+  changeAmount,
+  total,
+  onCheckoutModeChange,
+  onCancel,
+  onConfirm,
+}: {
+  isOpen: boolean;
+  isSaving: boolean;
+  isEditing: boolean;
+  cart: CartItem[];
+  checkoutMode: "now" | "later";
+  orderType: string;
+  paymentMethod: string;
+  cashReceived: number | null;
+  changeAmount: number | null;
+  total: number;
+  onCheckoutModeChange: (mode: "now" | "later") => void;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-3 sm:items-center">
+      <div className="max-h-[92vh] w-full max-w-xl overflow-hidden rounded-[8px] bg-[#fffdf5] shadow-2xl">
+        <div className="border-b border-[#d6c9aa] px-4 py-3">
+          <h2 className="text-xl font-black">
+            {isEditing ? "Konfirmasi Perubahan Transaksi" : "Konfirmasi Pesanan"}
+          </h2>
+          <p className="text-sm font-bold text-[#68705c]">
+            Cek item, jumlah, dan pembayaran sebelum disimpan.
+          </p>
+        </div>
+
+        <div className="max-h-[58vh] overflow-y-auto px-4 py-3">
+          <div className="mb-3 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => onCheckoutModeChange("now")}
+              className={`h-12 rounded-[8px] font-black ${
+                checkoutMode === "now"
+                  ? "bg-[#28451f] text-white"
+                  : "bg-[#eef3df] text-[#28451f]"
+              }`}
+            >
+              Bayar sekarang
+            </button>
+            <button
+              type="button"
+              onClick={() => onCheckoutModeChange("later")}
+              className={`h-12 rounded-[8px] font-black ${
+                checkoutMode === "later"
+                  ? "bg-[#28451f] text-white"
+                  : "bg-[#eef3df] text-[#28451f]"
+              }`}
+            >
+              Bayar nanti
+            </button>
+          </div>
+          <div className="mb-3 grid grid-cols-2 gap-2">
+            <DetailBox label="Jenis" value={orderType} />
+            <DetailBox label="Pembayaran" value={paymentMethod} />
+          </div>
+
+          <div className="space-y-2">
+            {cart.map((item) => (
+              <div
+                key={item.lineId}
+                className="rounded-[8px] border border-[#e1d5b8] bg-white p-3"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-black">{item.productName}</p>
+                    <p className="text-sm font-bold text-[#68705c]">
+                      {item.quantity} x {formatRupiah(item.unitPrice)}
+                    </p>
+                    {item.note && (
+                      <p className="mt-1 text-xs font-bold text-[#a13f28]">
+                        Catatan: {item.note}
+                      </p>
+                    )}
+                  </div>
+                  <p className="font-black">
+                    {formatRupiah(item.unitPrice * item.quantity)}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="border-t border-[#d6c9aa] bg-white px-4 py-3">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-xl font-black">
+              <span>Total</span>
+              <span>{formatRupiah(total)}</span>
+            </div>
+            {cashReceived !== null && (
+              <>
+                <div className="flex justify-between text-sm font-bold text-[#68705c]">
+                  <span>Uang diterima</span>
+                  <span>{formatRupiah(cashReceived)}</span>
+                </div>
+                <div className="flex justify-between text-sm font-bold text-[#68705c]">
+                  <span>Kembalian</span>
+                  <span>{formatRupiah(changeAmount ?? 0)}</span>
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={onCancel}
+              disabled={isSaving}
+              className="h-12 rounded-[8px] bg-[#f5ded5] font-black text-[#a13f28] disabled:opacity-50"
+            >
+              Cek Lagi
+            </button>
+            <button
+              type="button"
+              onClick={onConfirm}
+              disabled={isSaving}
+              className="h-12 rounded-[8px] bg-[#28451f] font-black text-white disabled:opacity-50"
+            >
+              {isSaving
+                ? "Menyimpan..."
+                : checkoutMode === "later"
+                ? "Simpan Pesanan"
+                : "Konfirmasi & Cetak"}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1784,23 +2129,25 @@ function PrintableReceipt({ order }: { order: Order | null }) {
   );
 }
 
-function isOrderInRange(order: Order, range: ReportRange) {
+function isOrderInRange(
+  order: Order,
+  range: ReportRange,
+  customStartDate: string,
+  customEndDate: string,
+) {
   const orderDate = new Date(order.createdAt);
-  const todayStart = startOfDay(new Date());
-  const tomorrowStart = addDays(todayStart, 1);
+  const { start, end } = getReportRangeWindow(range, new Date(), {
+    startDate: customStartDate,
+    endDate: customEndDate,
+  });
+  return orderDate >= start && orderDate < end;
+}
 
-  if (range === "today") {
-    return orderDate >= todayStart && orderDate < tomorrowStart;
-  }
-
-  if (range === "yesterday") {
-    const yesterdayStart = addDays(todayStart, -1);
-    return orderDate >= yesterdayStart && orderDate < todayStart;
-  }
-
-  const days = range === "7days" ? 7 : range === "14days" ? 14 : 30;
-  const start = addDays(todayStart, -(days - 1));
-  return orderDate >= start && orderDate < tomorrowStart;
+function getDateInputValue(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function getSoldProducts(orders: Order[]) {
@@ -1824,16 +2171,6 @@ function getSoldProducts(orders: Order[]) {
     if (b.quantity !== a.quantity) return b.quantity - a.quantity;
     return b.total - a.total;
   });
-}
-
-function startOfDay(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-}
-
-function addDays(date: Date, days: number) {
-  const nextDate = new Date(date);
-  nextDate.setDate(nextDate.getDate() + days);
-  return nextDate;
 }
 
 function isUploadedImage(imageUrl: string | null) {
