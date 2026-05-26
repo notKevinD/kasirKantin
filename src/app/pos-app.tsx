@@ -1204,14 +1204,13 @@ export function PosApp({
                 </div>
               )}
               <div className="min-h-0 overflow-y-auto pr-1">
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3">
+                <div className="grid gap-3 md:grid-cols-2">
                 {visibleMenuProducts.map((product) => (
                   <div
                     key={product.id}
-                    className="rounded-[8px] border border-[#e1d5b8] bg-white p-3"
+                    className="min-w-0 overflow-hidden rounded-[8px] border border-[#e1d5b8] bg-white"
                   >
-                    <div className="flex gap-3">
-                      <div className="relative h-20 w-24 overflow-hidden rounded-[8px] bg-[#eef3df]">
+                    <div className="relative h-32 bg-[#eef3df]">
                         {product.imageUrl ? (
                           <Image
                             src={getDisplayImageUrl(product.imageUrl)}
@@ -1221,17 +1220,19 @@ export function PosApp({
                             className="object-cover"
                           />
                         ) : null}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate font-black">{product.name}</p>
+                    </div>
+                    <div className="p-3">
+                      <div className="min-w-0">
+                        <p className="break-words font-black leading-tight">
+                          {product.name}
+                        </p>
                         <p className="text-sm text-[#68705c]">
                           {product.category.name}
                         </p>
-                        <p className="font-bold text-[#d85f32]">
+                        <p className="mt-1 break-words font-bold text-[#d85f32]">
                           {formatRupiah(product.price)}
                         </p>
                       </div>
-                    </div>
                     <div className="mt-3 grid grid-cols-3 gap-2">
                       <button
                         onClick={() => toggleProduct(product)}
@@ -1255,6 +1256,7 @@ export function PosApp({
                       >
                         Hapus
                       </button>
+                    </div>
                     </div>
                   </div>
                 ))}
