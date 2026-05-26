@@ -776,16 +776,8 @@ export function PosApp({
   }
 
   return (
-    <main
-      className={`min-h-screen bg-[#f4efe2] text-[#24351f] ${
-        activeTab === "kasir" ? "lg:h-screen lg:overflow-hidden" : ""
-      }`}
-    >
-      <section
-        className={`app-shell mx-auto flex min-h-screen w-full max-w-[1440px] flex-col px-5 py-4 ${
-          activeTab === "kasir" ? "lg:h-screen lg:min-h-0" : ""
-        }`}
-      >
+    <main className="min-h-screen bg-[#f4efe2] text-[#24351f] lg:h-screen lg:overflow-hidden">
+      <section className="app-shell mx-auto flex min-h-screen w-full max-w-[1440px] flex-col px-5 py-4 lg:h-screen lg:min-h-0">
         <header className="mb-4 flex shrink-0 flex-col gap-4 rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] px-4 py-3 shadow-sm xl:flex-row xl:items-center xl:justify-between">
           <div className="flex items-center gap-3">
             <Image
@@ -1130,8 +1122,8 @@ export function PosApp({
         )}
 
         {activeTab === "menu" && canManageMenu && (
-          <section className="grid gap-4 lg:grid-cols-[420px_1fr]">
-            <div className="space-y-4">
+          <section className="grid flex-1 gap-4 lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_380px] lg:overflow-hidden xl:grid-cols-[minmax(0,1fr)_420px]">
+            <div className="order-2 space-y-4 overflow-y-auto pr-1 lg:min-h-0">
               <form
                 onSubmit={addCategory}
                 className="rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4"
@@ -1263,8 +1255,8 @@ export function PosApp({
               </form>
             </div>
 
-            <div className="rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4">
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="order-1 flex min-w-0 flex-col overflow-hidden rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4 lg:min-h-0">
+              <div className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-3">
                 <h2 className="text-xl font-black">Daftar Menu</h2>
                 <div className="flex h-12 min-w-[260px] flex-1 items-center gap-2 rounded-[8px] border border-[#d6c9aa] bg-white px-3 md:max-w-md">
                   <Search size={20} />
@@ -1281,7 +1273,8 @@ export function PosApp({
                   Menu tidak ditemukan.
                 </div>
               )}
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              <div className="min-h-0 overflow-y-auto pr-1">
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                 {visibleMenuProducts.map((product) => (
                   <div
                     key={product.id}
@@ -1335,14 +1328,15 @@ export function PosApp({
                     </div>
                   </div>
                 ))}
+                </div>
               </div>
             </div>
           </section>
         )}
 
         {activeTab === "riwayat" && canViewReports && (
-          <section className="space-y-4">
-            <div className="rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4">
+          <section className="flex flex-1 flex-col gap-4 overflow-y-auto pr-1 lg:min-h-0">
+            <div className="shrink-0 rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <h2 className="flex items-center gap-2 text-xl font-black">
                   <CalendarDays size={22} /> Periode Laporan
@@ -1410,12 +1404,12 @@ export function PosApp({
               </div>
             </div>
 
-            <div className="grid gap-4 lg:grid-cols-[1fr_440px]">
-              <div className="rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4">
+            <div className="grid gap-4 lg:min-h-[420px] lg:grid-cols-[minmax(0,1fr)_440px]">
+              <div className="flex min-w-0 flex-col overflow-hidden rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4">
                 <h2 className="mb-4 flex items-center gap-2 text-xl font-black">
                   <ReceiptText size={22} /> Riwayat Transaksi
                 </h2>
-                <div className="space-y-3">
+                <div className="min-h-0 space-y-3 overflow-y-auto pr-1">
                   {reportOrders.length === 0 && (
                     <div className="rounded-[8px] border border-dashed border-[#c8b98f] p-6 text-center font-bold text-[#68705c]">
                       Belum ada transaksi pada periode ini.
@@ -1464,10 +1458,10 @@ export function PosApp({
         )}
 
         {activeTab === "pengguna" && canManageUsers && (
-          <section className="grid gap-4 lg:grid-cols-[420px_1fr]">
+          <section className="grid flex-1 gap-4 lg:min-h-0 lg:grid-cols-[380px_minmax(0,1fr)] lg:overflow-hidden xl:grid-cols-[420px_minmax(0,1fr)]">
             <form
               onSubmit={createUser}
-              className="rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4"
+              className="overflow-y-auto rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4"
             >
               <h2 className="mb-4 flex items-center gap-2 text-xl font-black">
                 <Users size={22} /> Tambah User
@@ -1521,9 +1515,9 @@ export function PosApp({
               </button>
             </form>
 
-            <div className="rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4">
-              <h2 className="mb-4 text-xl font-black">Daftar User</h2>
-              <div className="space-y-3">
+            <div className="flex min-w-0 flex-col overflow-hidden rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4">
+              <h2 className="mb-4 shrink-0 text-xl font-black">Daftar User</h2>
+              <div className="min-h-0 space-y-3 overflow-y-auto pr-1">
                 {users.map((account) => (
                   <div
                     key={account.id}
@@ -1616,8 +1610,8 @@ export function PosApp({
         )}
 
         {activeTab === "audit" && canManageUsers && (
-          <section className="rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4">
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <section className="flex flex-1 flex-col overflow-hidden rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4 lg:min-h-0">
+            <div className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-3">
               <h2 className="flex items-center gap-2 text-xl font-black">
                 <ShieldCheck size={22} /> Audit Aktivitas
               </h2>
@@ -1629,7 +1623,7 @@ export function PosApp({
                 Refresh
               </button>
             </div>
-            <div className="overflow-hidden rounded-[8px] border border-[#e1d5b8]">
+            <div className="min-h-0 overflow-auto rounded-[8px] border border-[#e1d5b8]">
               <table className="w-full border-collapse bg-white text-left text-sm">
                 <thead className="bg-[#eef3df] uppercase text-[#68705c]">
                   <tr>
