@@ -776,9 +776,9 @@ export function PosApp({
   }
 
   return (
-    <main className="min-h-screen bg-[#f4efe2] text-[#24351f]">
-      <section className="app-shell mx-auto flex min-h-screen w-full max-w-[1440px] flex-col px-5 py-4">
-        <header className="mb-4 flex flex-col gap-4 rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] px-4 py-3 shadow-sm xl:flex-row xl:items-center xl:justify-between">
+    <main className="min-h-screen bg-[#f4efe2] text-[#24351f] xl:h-screen xl:overflow-hidden">
+      <section className="app-shell mx-auto flex min-h-screen w-full max-w-[1440px] flex-col px-5 py-4 xl:h-screen xl:min-h-0">
+        <header className="mb-4 flex shrink-0 flex-col gap-4 rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] px-4 py-3 shadow-sm xl:flex-row xl:items-center xl:justify-between">
           <div className="flex items-center gap-3">
             <Image
               src="/joyful-logo.svg"
@@ -820,7 +820,7 @@ export function PosApp({
           </div>
         </header>
 
-        <nav className="mb-4 flex flex-wrap gap-2">
+        <nav className="mb-4 flex shrink-0 flex-wrap gap-2">
           {tabs.map(({ id, label }) => (
             <button
               key={id}
@@ -837,7 +837,7 @@ export function PosApp({
         </nav>
 
         {activeTab === "kasir" && (
-          <div className="grid flex-1 gap-4 xl:h-[calc(100vh-178px)] xl:min-h-[620px] xl:grid-cols-[280px_minmax(0,1fr)_420px]">
+          <div className="grid flex-1 gap-4 xl:min-h-0 xl:grid-cols-[280px_minmax(0,1fr)_420px] xl:overflow-hidden">
             <section className="rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4 xl:flex xl:min-h-0 xl:flex-col">
               <h2 className="mb-3 text-lg font-black">Transaksi Berjalan</h2>
               {inProgressOrders.length === 0 ? (
@@ -953,7 +953,7 @@ export function PosApp({
               </div>
             </section>
 
-            <aside className="rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4 xl:sticky xl:top-4 xl:flex xl:h-full xl:min-h-0 xl:flex-col">
+            <aside className="rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4 xl:flex xl:h-full xl:min-h-0 xl:flex-col xl:overflow-hidden">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="flex items-center gap-2 text-xl font-black">
                   <ShoppingCart size={22} />{" "}
