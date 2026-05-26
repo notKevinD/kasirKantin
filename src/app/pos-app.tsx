@@ -969,12 +969,12 @@ export function PosApp({
                 </button>
               </div>
 
-              <div className="mb-4 grid grid-cols-2 gap-2">
+              <div className="mb-3 grid shrink-0 grid-cols-2 gap-2">
                 {["Dine in", "Bungkus"].map((type) => (
                   <button
                     key={type}
                     onClick={() => setOrderType(type)}
-                    className={`h-12 rounded-[8px] font-bold ${
+                    className={`h-11 rounded-[8px] font-bold ${
                       orderType === type
                         ? "bg-[#28451f] text-white"
                         : "bg-[#eef3df]"
@@ -985,9 +985,9 @@ export function PosApp({
                 ))}
               </div>
 
-              <div className="space-y-3 overflow-y-auto pr-1 xl:min-h-0 xl:flex-1">
+              <div className="h-[220px] min-h-[180px] space-y-3 overflow-y-auto pr-1 xl:flex-none 2xl:h-[300px]">
                 {cart.length === 0 && (
-                  <div className="grid min-h-40 place-items-center rounded-[8px] border border-dashed border-[#c8b98f] text-center text-[#68705c]">
+                  <div className="grid min-h-full place-items-center rounded-[8px] border border-dashed border-[#c8b98f] px-3 text-center text-[#68705c]">
                     Pilih menu untuk mulai mencatat pesanan.
                   </div>
                 )}
@@ -1035,15 +1035,15 @@ export function PosApp({
                 ))}
               </div>
 
-              <div className="mt-4 shrink-0 space-y-3 border-t border-[#d6c9aa] pt-4">
-                <div className="flex items-center justify-between text-xl font-black">
+              <div className="mt-3 min-h-0 space-y-2 overflow-y-auto border-t border-[#d6c9aa] pt-3">
+                <div className="flex items-center justify-between text-lg font-black">
                   <span>Total</span>
                   <span>{formatRupiah(cartTotal)}</span>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => setCheckoutMode("now")}
-                    className={`h-12 rounded-[8px] font-bold ${
+                    className={`h-10 rounded-[8px] font-bold ${
                       checkoutMode === "now"
                         ? "bg-[#28451f] text-white"
                         : "bg-[#eef3df]"
@@ -1053,7 +1053,7 @@ export function PosApp({
                   </button>
                   <button
                     onClick={() => setCheckoutMode("later")}
-                    className={`h-12 rounded-[8px] font-bold ${
+                    className={`h-10 rounded-[8px] font-bold ${
                       checkoutMode === "later"
                         ? "bg-[#28451f] text-white"
                         : "bg-[#eef3df]"
@@ -1066,7 +1066,7 @@ export function PosApp({
                   <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => setPaymentMethod("Tunai")}
-                    className={`flex h-12 items-center justify-center gap-2 rounded-[8px] font-bold ${
+                    className={`flex h-10 items-center justify-center gap-2 rounded-[8px] font-bold ${
                       paymentMethod === "Tunai"
                         ? "bg-[#d85f32] text-white"
                         : "bg-[#eef3df]"
@@ -1076,7 +1076,7 @@ export function PosApp({
                   </button>
                   <button
                     onClick={() => setPaymentMethod("QRIS manual")}
-                    className={`flex h-12 items-center justify-center gap-2 rounded-[8px] font-bold ${
+                    className={`flex h-10 items-center justify-center gap-2 rounded-[8px] font-bold ${
                       paymentMethod === "QRIS manual"
                         ? "bg-[#d85f32] text-white"
                         : "bg-[#eef3df]"
@@ -1093,7 +1093,7 @@ export function PosApp({
                       onChange={(event) => setCashReceived(event.target.value)}
                       inputMode="numeric"
                       placeholder="Uang diterima"
-                      className="h-12 w-full rounded-[8px] border border-[#d6c9aa] px-3 text-lg font-bold outline-none"
+                      className="h-10 w-full rounded-[8px] border border-[#d6c9aa] px-3 font-bold outline-none"
                     />
                     <p className="mt-2 text-sm font-bold text-[#68705c]">
                       Kembalian: {formatRupiah(changeAmount)}
@@ -1103,7 +1103,7 @@ export function PosApp({
                 <button
                   onClick={requestOrderConfirmation}
                   disabled={cart.length === 0 || isSavingOrder}
-                  className="flex h-14 w-full items-center justify-center gap-2 rounded-[8px] bg-[#28451f] text-lg font-black text-white disabled:opacity-50"
+                  className="flex h-12 w-full items-center justify-center gap-2 rounded-[8px] bg-[#28451f] font-black text-white disabled:opacity-50"
                 >
                   <Printer size={22} />{" "}
                   {isSavingOrder
