@@ -838,7 +838,7 @@ export function PosApp({
 
         {activeTab === "kasir" && (
           <div className="grid flex-1 gap-4 xl:min-h-0 xl:grid-cols-[280px_minmax(0,1fr)_420px] xl:overflow-hidden">
-            <section className="rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4 xl:flex xl:min-h-0 xl:flex-col">
+            <section className="min-w-0 rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4 xl:flex xl:min-h-0 xl:flex-col xl:overflow-hidden">
               <h2 className="mb-3 text-lg font-black">Transaksi Berjalan</h2>
               {inProgressOrders.length === 0 ? (
                 <div className="grid min-h-32 place-items-center rounded-[8px] border border-dashed border-[#c8b98f] px-3 text-center text-sm font-bold text-[#68705c]">
@@ -887,7 +887,7 @@ export function PosApp({
               )}
             </section>
 
-            <section className="rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4 xl:flex xl:min-h-0 xl:flex-col">
+            <section className="min-w-0 rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4 xl:flex xl:min-h-0 xl:flex-col xl:overflow-hidden">
               <div className="mb-4 flex shrink-0 flex-wrap items-center gap-3">
                 <div className="flex h-12 min-w-[280px] flex-1 items-center gap-2 rounded-[8px] border border-[#d6c9aa] bg-white px-3">
                   <Search size={20} />
@@ -915,15 +915,16 @@ export function PosApp({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 overflow-y-auto pr-1 xl:min-h-0 xl:flex-1 2xl:grid-cols-3">
+              <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto pr-1">
+                <div className="grid min-w-0 grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3">
                 {visibleProducts.map((product) => (
                   <button
                     key={product.id}
                     onClick={() => addToCart(product)}
-                    className="overflow-hidden rounded-[8px] border border-[#d6c9aa] bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md disabled:opacity-55"
+                    className="min-w-0 overflow-hidden rounded-[8px] border border-[#d6c9aa] bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md disabled:opacity-55"
                     disabled={!product.isAvailable}
                   >
-                    <div className="relative aspect-[4/3] bg-[#eef3df]">
+                    <div className="relative h-32 bg-[#eef3df]">
                       {product.imageUrl ? (
                         <Image
                           src={getDisplayImageUrl(product.imageUrl)}
@@ -950,10 +951,11 @@ export function PosApp({
                     </div>
                   </button>
                 ))}
+                </div>
               </div>
             </section>
 
-            <aside className="rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4 xl:flex xl:h-full xl:min-h-0 xl:flex-col xl:overflow-hidden">
+            <aside className="min-w-0 rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4 xl:flex xl:h-full xl:min-h-0 xl:flex-col xl:overflow-hidden">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="flex items-center gap-2 text-xl font-black">
                   <ShoppingCart size={22} />{" "}
