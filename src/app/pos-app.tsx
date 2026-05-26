@@ -932,7 +932,7 @@ export function PosApp({
                     className="min-w-0 overflow-hidden rounded-[8px] border border-[#d6c9aa] bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md disabled:opacity-55"
                     disabled={!product.isAvailable}
                   >
-                    <div className="relative h-32 bg-[#eef3df]">
+                    <div className="relative aspect-[4/3] bg-[#eef3df]">
                       {product.imageUrl ? (
                         <Image
                           src={getDisplayImageUrl(product.imageUrl)}
