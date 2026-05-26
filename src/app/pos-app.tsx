@@ -776,8 +776,16 @@ export function PosApp({
   }
 
   return (
-    <main className="min-h-screen bg-[#f4efe2] text-[#24351f] lg:h-screen lg:overflow-hidden">
-      <section className="app-shell mx-auto flex min-h-screen w-full max-w-[1440px] flex-col px-5 py-4 lg:h-screen lg:min-h-0">
+    <main
+      className={`min-h-screen bg-[#f4efe2] text-[#24351f] ${
+        activeTab === "riwayat" ? "" : "lg:h-screen lg:overflow-hidden"
+      }`}
+    >
+      <section
+        className={`app-shell mx-auto flex min-h-screen w-full max-w-[1440px] flex-col px-5 py-4 ${
+          activeTab === "riwayat" ? "" : "lg:h-screen lg:min-h-0"
+        }`}
+      >
         <header className="mb-4 flex shrink-0 flex-col gap-4 rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] px-4 py-3 shadow-sm xl:flex-row xl:items-center xl:justify-between">
           <div className="flex items-center gap-3">
             <Image
@@ -1337,7 +1345,7 @@ export function PosApp({
         )}
 
         {activeTab === "riwayat" && canViewReports && (
-          <section className="flex flex-1 flex-col gap-4 overflow-hidden lg:min-h-0">
+          <section className="flex flex-1 flex-col gap-4">
             <div className="shrink-0 rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <h2 className="flex items-center gap-2 text-xl font-black">
@@ -1406,9 +1414,9 @@ export function PosApp({
               </div>
             </div>
 
-            <div className="grid flex-1 grid-rows-[minmax(0,1fr)_240px] gap-4 overflow-hidden lg:min-h-0 xl:grid-rows-[minmax(0,1fr)_280px]">
-              <div className="grid min-h-0 gap-4 overflow-hidden lg:grid-cols-[minmax(0,1fr)_380px] xl:grid-cols-[minmax(0,1fr)_440px]">
-                <div className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4">
+            <div className="grid gap-4">
+              <div className="grid min-h-[440px] gap-4 lg:grid-cols-[minmax(0,1fr)_380px] xl:grid-cols-[minmax(0,1fr)_440px]">
+                <div className="flex min-h-[440px] min-w-0 flex-col overflow-hidden rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4">
                 <h2 className="mb-4 flex items-center gap-2 text-xl font-black">
                   <ReceiptText size={22} /> Riwayat Transaksi
                 </h2>
