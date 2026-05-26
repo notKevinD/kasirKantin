@@ -1406,9 +1406,9 @@ export function PosApp({
               </div>
             </div>
 
-            <div className="grid flex-1 gap-4 overflow-hidden lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_380px] xl:grid-cols-[minmax(0,1fr)_440px]">
-              <div className="grid min-w-0 grid-rows-[minmax(0,1fr)_260px] gap-4 overflow-hidden lg:min-h-0 xl:grid-rows-[minmax(0,1fr)_300px]">
-                <div className="flex min-w-0 flex-col overflow-hidden rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4">
+            <div className="grid flex-1 grid-rows-[minmax(0,1fr)_240px] gap-4 overflow-hidden lg:min-h-0 xl:grid-rows-[minmax(0,1fr)_280px]">
+              <div className="grid min-h-0 gap-4 overflow-hidden lg:grid-cols-[minmax(0,1fr)_380px] xl:grid-cols-[minmax(0,1fr)_440px]">
+                <div className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4">
                 <h2 className="mb-4 flex items-center gap-2 text-xl font-black">
                   <ReceiptText size={22} /> Riwayat Transaksi
                 </h2>
@@ -1447,8 +1447,6 @@ export function PosApp({
                   ))}
                 </div>
               </div>
-                <SoldProductsReport products={soldProducts} />
-              </div>
               <OrderDetail
                 order={lastOrder}
                 onEdit={startEditOrder}
@@ -1456,6 +1454,8 @@ export function PosApp({
                 onPrint={printPaidReceipt}
                 canEdit={canVoidOrder}
               />
+              </div>
+              <SoldProductsReport products={soldProducts} />
             </div>
           </section>
         )}
