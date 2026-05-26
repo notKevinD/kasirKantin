@@ -1122,8 +1122,8 @@ export function PosApp({
         )}
 
         {activeTab === "menu" && canManageMenu && (
-          <section className="grid flex-1 gap-4 lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_380px] lg:overflow-hidden xl:grid-cols-[minmax(0,1fr)_420px]">
-            <div className="order-2 space-y-4 overflow-y-auto pr-1 lg:min-h-0">
+          <section className="grid flex-1 gap-4 lg:min-h-0 lg:grid-cols-[280px_minmax(0,1fr)_340px] lg:overflow-hidden xl:grid-cols-[320px_minmax(0,1fr)_400px]">
+            <div className="min-w-0 overflow-y-auto pr-1 lg:min-h-0">
               <form
                 onSubmit={addCategory}
                 className="rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4"
@@ -1175,7 +1175,86 @@ export function PosApp({
                   })}
                 </div>
               </form>
+            </div>
 
+            <div className="flex min-w-0 flex-col overflow-hidden rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4 lg:min-h-0">
+              <div className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-3">
+                <h2 className="text-xl font-black">Daftar Menu</h2>
+                <div className="flex h-12 min-w-[260px] flex-1 items-center gap-2 rounded-[8px] border border-[#d6c9aa] bg-white px-3 md:max-w-md">
+                  <Search size={20} />
+                  <input
+                    value={menuQuery}
+                    onChange={(event) => setMenuQuery(event.target.value)}
+                    placeholder="Cari nama atau kategori..."
+                    className="h-full flex-1 bg-transparent text-base outline-none"
+                  />
+                </div>
+              </div>
+              {visibleMenuProducts.length === 0 && (
+                <div className="rounded-[8px] border border-dashed border-[#c8b98f] p-6 text-center font-bold text-[#68705c]">
+                  Menu tidak ditemukan.
+                </div>
+              )}
+              <div className="min-h-0 overflow-y-auto pr-1">
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3">
+                {visibleMenuProducts.map((product) => (
+                  <div
+                    key={product.id}
+                    className="rounded-[8px] border border-[#e1d5b8] bg-white p-3"
+                  >
+                    <div className="flex gap-3">
+                      <div className="relative h-20 w-24 overflow-hidden rounded-[8px] bg-[#eef3df]">
+                        {product.imageUrl ? (
+                          <Image
+                            src={getDisplayImageUrl(product.imageUrl)}
+                            alt={product.name}
+                            fill
+                            unoptimized={isUploadedImage(product.imageUrl)}
+                            className="object-cover"
+                          />
+                        ) : null}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-black">{product.name}</p>
+                        <p className="text-sm text-[#68705c]">
+                          {product.category.name}
+                        </p>
+                        <p className="font-bold text-[#d85f32]">
+                          {formatRupiah(product.price)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-3 grid grid-cols-3 gap-2">
+                      <button
+                        onClick={() => toggleProduct(product)}
+                        className={`h-10 rounded-[8px] text-sm font-bold ${
+                          product.isAvailable
+                            ? "bg-[#eef3df] text-[#28451f]"
+                            : "bg-[#f5ded5] text-[#a13f28]"
+                        }`}
+                      >
+                        {product.isAvailable ? "Tersedia" : "Habis"}
+                      </button>
+                      <button
+                        onClick={() => startEditProduct(product)}
+                        className="flex h-10 items-center justify-center gap-1 rounded-[8px] bg-[#f4efe2] text-sm font-bold text-[#28451f]"
+                      >
+                        <Pencil size={15} /> Edit
+                      </button>
+                      <button
+                        onClick={() => deleteProduct(product)}
+                        className="h-10 rounded-[8px] bg-[#f5ded5] text-sm font-bold text-[#a13f28]"
+                      >
+                        Hapus
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="min-w-0 overflow-y-auto pr-1 lg:min-h-0">
               <form
                 onSubmit={addProduct}
                 className="rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4"
@@ -1254,88 +1333,11 @@ export function PosApp({
                 </div>
               </form>
             </div>
-
-            <div className="order-1 flex min-w-0 flex-col overflow-hidden rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4 lg:min-h-0">
-              <div className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-3">
-                <h2 className="text-xl font-black">Daftar Menu</h2>
-                <div className="flex h-12 min-w-[260px] flex-1 items-center gap-2 rounded-[8px] border border-[#d6c9aa] bg-white px-3 md:max-w-md">
-                  <Search size={20} />
-                  <input
-                    value={menuQuery}
-                    onChange={(event) => setMenuQuery(event.target.value)}
-                    placeholder="Cari nama atau kategori..."
-                    className="h-full flex-1 bg-transparent text-base outline-none"
-                  />
-                </div>
-              </div>
-              {visibleMenuProducts.length === 0 && (
-                <div className="rounded-[8px] border border-dashed border-[#c8b98f] p-6 text-center font-bold text-[#68705c]">
-                  Menu tidak ditemukan.
-                </div>
-              )}
-              <div className="min-h-0 overflow-y-auto pr-1">
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                {visibleMenuProducts.map((product) => (
-                  <div
-                    key={product.id}
-                    className="rounded-[8px] border border-[#e1d5b8] bg-white p-3"
-                  >
-                    <div className="flex gap-3">
-                      <div className="relative h-20 w-24 overflow-hidden rounded-[8px] bg-[#eef3df]">
-                        {product.imageUrl ? (
-                          <Image
-                            src={getDisplayImageUrl(product.imageUrl)}
-                            alt={product.name}
-                            fill
-                            unoptimized={isUploadedImage(product.imageUrl)}
-                            className="object-cover"
-                          />
-                        ) : null}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate font-black">{product.name}</p>
-                        <p className="text-sm text-[#68705c]">
-                          {product.category.name}
-                        </p>
-                        <p className="font-bold text-[#d85f32]">
-                          {formatRupiah(product.price)}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="mt-3 grid grid-cols-3 gap-2">
-                      <button
-                        onClick={() => toggleProduct(product)}
-                        className={`h-10 rounded-[8px] text-sm font-bold ${
-                          product.isAvailable
-                            ? "bg-[#eef3df] text-[#28451f]"
-                            : "bg-[#f5ded5] text-[#a13f28]"
-                        }`}
-                      >
-                        {product.isAvailable ? "Tersedia" : "Habis"}
-                      </button>
-                      <button
-                        onClick={() => startEditProduct(product)}
-                        className="flex h-10 items-center justify-center gap-1 rounded-[8px] bg-[#f4efe2] text-sm font-bold text-[#28451f]"
-                      >
-                        <Pencil size={15} /> Edit
-                      </button>
-                      <button
-                        onClick={() => deleteProduct(product)}
-                        className="h-10 rounded-[8px] bg-[#f5ded5] text-sm font-bold text-[#a13f28]"
-                      >
-                        Hapus
-                      </button>
-                    </div>
-                  </div>
-                ))}
-                </div>
-              </div>
-            </div>
           </section>
         )}
 
         {activeTab === "riwayat" && canViewReports && (
-          <section className="flex flex-1 flex-col gap-4 overflow-y-auto pr-1 lg:min-h-0">
+          <section className="flex flex-1 flex-col gap-4 overflow-hidden lg:min-h-0">
             <div className="shrink-0 rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <h2 className="flex items-center gap-2 text-xl font-black">
@@ -1404,8 +1406,9 @@ export function PosApp({
               </div>
             </div>
 
-            <div className="grid gap-4 lg:min-h-[420px] lg:grid-cols-[minmax(0,1fr)_440px]">
-              <div className="flex min-w-0 flex-col overflow-hidden rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4">
+            <div className="grid flex-1 gap-4 overflow-hidden lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_380px] xl:grid-cols-[minmax(0,1fr)_440px]">
+              <div className="grid min-w-0 grid-rows-[minmax(0,1fr)_260px] gap-4 overflow-hidden lg:min-h-0 xl:grid-rows-[minmax(0,1fr)_300px]">
+                <div className="flex min-w-0 flex-col overflow-hidden rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4">
                 <h2 className="mb-4 flex items-center gap-2 text-xl font-black">
                   <ReceiptText size={22} /> Riwayat Transaksi
                 </h2>
@@ -1444,6 +1447,8 @@ export function PosApp({
                   ))}
                 </div>
               </div>
+                <SoldProductsReport products={soldProducts} />
+              </div>
               <OrderDetail
                 order={lastOrder}
                 onEdit={startEditOrder}
@@ -1452,8 +1457,6 @@ export function PosApp({
                 canEdit={canVoidOrder}
               />
             </div>
-
-            <SoldProductsReport products={soldProducts} />
           </section>
         )}
 
@@ -1858,9 +1861,9 @@ function OrderDetail({
 }) {
   if (!order) {
     return (
-      <aside className="rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4">
-        <h2 className="mb-4 text-xl font-black">Detail Transaksi</h2>
-        <div className="rounded-[8px] border border-dashed border-[#c8b98f] p-6 text-center font-bold text-[#68705c]">
+      <aside className="flex min-h-0 flex-col rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4">
+        <h2 className="mb-4 shrink-0 text-xl font-black">Detail Transaksi</h2>
+        <div className="grid min-h-0 flex-1 place-items-center rounded-[8px] border border-dashed border-[#c8b98f] p-6 text-center font-bold text-[#68705c]">
           Pilih transaksi untuk melihat detail nota.
         </div>
       </aside>
@@ -1868,8 +1871,8 @@ function OrderDetail({
   }
 
   return (
-    <aside className="rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4">
-      <div className="mb-4 flex items-start justify-between gap-3">
+    <aside className="flex min-h-0 flex-col overflow-hidden rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4">
+      <div className="mb-4 flex shrink-0 items-start justify-between gap-3">
         <div>
           <h2 className="text-xl font-black">Detail Transaksi</h2>
           <p className="text-sm font-bold text-[#68705c]">{order.orderNumber}</p>
@@ -1900,14 +1903,14 @@ function OrderDetail({
         </div>
       </div>
 
-      <div className="mb-4 grid grid-cols-2 gap-2 text-sm">
+      <div className="mb-4 grid shrink-0 grid-cols-2 gap-2 text-sm">
         <DetailBox label="Waktu" value={formatOrderDate(order.createdAt)} />
         <DetailBox label="Jenis" value={order.orderType} />
         <DetailBox label="Pembayaran" value={order.paymentMethod} />
         <DetailBox label="Status" value={order.status === "paid" ? "Lunas" : order.status} />
       </div>
 
-      <div className="space-y-2">
+      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
         {order.items.map((item) => (
           <div
             key={item.id ?? `${order.id}-${item.productName}`}
@@ -1931,7 +1934,7 @@ function OrderDetail({
         ))}
       </div>
 
-      <div className="mt-4 space-y-2 border-t border-[#d6c9aa] pt-4">
+      <div className="mt-4 shrink-0 space-y-2 border-t border-[#d6c9aa] pt-4">
         <div className="flex justify-between text-lg font-black">
           <span>Total</span>
           <span>{formatRupiah(order.total)}</span>
@@ -1968,8 +1971,8 @@ function SoldProductsReport({
   products: { name: string; quantity: number; total: number }[];
 }) {
   return (
-    <section className="rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4">
-      <div className="mb-4 flex items-center justify-between gap-3">
+    <section className="flex min-h-0 flex-col overflow-hidden rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4">
+      <div className="mb-4 flex shrink-0 items-center justify-between gap-3">
         <h2 className="flex items-center gap-2 text-xl font-black">
           <BarChart3 size={22} /> Menu Terjual
         </h2>
@@ -1983,7 +1986,7 @@ function SoldProductsReport({
           Belum ada menu terjual pada periode ini.
         </div>
       ) : (
-        <div className="overflow-hidden rounded-[8px] border border-[#e1d5b8]">
+        <div className="min-h-0 overflow-auto rounded-[8px] border border-[#e1d5b8]">
           <table className="w-full border-collapse bg-white text-left">
             <thead className="bg-[#eef3df] text-sm uppercase text-[#68705c]">
               <tr>
