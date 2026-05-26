@@ -815,12 +815,16 @@ export function PosApp({
   return (
     <main
       className={`min-h-screen bg-[#f4efe2] text-[#24351f] ${
-        activeTab === "riwayat" ? "" : "lg:h-screen lg:overflow-hidden"
+        activeTab === "riwayat" || activeTab === "kasir"
+          ? ""
+          : "lg:h-screen lg:overflow-hidden"
       }`}
     >
       <section
         className={`app-shell mx-auto flex min-h-screen w-full max-w-[1440px] flex-col px-5 py-4 ${
-          activeTab === "riwayat" ? "" : "lg:h-screen lg:min-h-0"
+          activeTab === "riwayat" || activeTab === "kasir"
+            ? ""
+            : "lg:h-screen lg:min-h-0"
         }`}
       >
         <header className="mb-4 flex shrink-0 flex-col gap-4 rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] px-4 py-3 shadow-sm xl:flex-row xl:items-center xl:justify-between">
@@ -882,7 +886,7 @@ export function PosApp({
         </nav>
 
         {activeTab === "kasir" && (
-          <div className="grid flex-1 gap-3 lg:min-h-0 lg:grid-cols-[210px_minmax(0,1fr)_330px] lg:overflow-hidden xl:gap-4 xl:grid-cols-[280px_minmax(0,1fr)_420px]">
+          <div className="grid flex-1 gap-3 lg:min-h-[760px] lg:grid-cols-[210px_minmax(0,1fr)_330px] lg:overflow-hidden xl:min-h-[820px] xl:gap-4 xl:grid-cols-[280px_minmax(0,1fr)_420px]">
             <section className="min-w-0 rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-3 lg:flex lg:min-h-0 lg:flex-col lg:overflow-hidden xl:p-4">
               <h2 className="mb-3 text-lg font-black">Transaksi Berjalan</h2>
               {inProgressOrders.length === 0 ? (
@@ -1032,7 +1036,7 @@ export function PosApp({
                 ))}
               </div>
 
-              <div className="h-[160px] min-h-[130px] space-y-3 overflow-y-auto pr-1 lg:flex-none xl:h-[220px] 2xl:h-[300px]">
+              <div className="min-h-[120px] flex-1 space-y-3 overflow-y-auto pr-1">
                 {cart.length === 0 && (
                   <div className="grid min-h-full place-items-center rounded-[8px] border border-dashed border-[#c8b98f] px-3 text-center text-sm text-[#68705c] xl:text-base">
                     Pilih menu untuk mulai mencatat pesanan.
@@ -1082,7 +1086,7 @@ export function PosApp({
                 ))}
               </div>
 
-              <div className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto border-t border-[#d6c9aa] pt-3">
+              <div className="mt-3 shrink-0 space-y-2 border-t border-[#d6c9aa] pt-3">
                 <div className="flex items-center justify-between text-lg font-black">
                   <span>Total</span>
                   <span>{formatRupiah(cartTotal)}</span>
