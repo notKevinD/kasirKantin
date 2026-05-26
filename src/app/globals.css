@@ -85,6 +85,15 @@ button {
     font-size: 14px;
   }
 
+  .receipt-item {
+    margin: 7px 0;
+  }
+
+  .receipt-item-title {
+    font-weight: 800;
+    font-size: 14px;
+  }
+
   .center {
     text-align: center;
   }

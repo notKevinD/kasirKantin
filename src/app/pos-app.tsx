@@ -149,6 +149,8 @@ export function PosApp({
   const [lastOrder, setLastOrder] = useState<Order | null>(
     orders.find((order) => order.status === "paid") ?? null,
   );
+  const [printOrder, setPrintOrder] = useState<Order | null>(lastOrder);
+  const [printMode, setPrintMode] = useState<"receipt" | "kitchen">("receipt");
   const [productForm, setProductForm] = useState({
     ...emptyProductForm,
     categoryId: initialCategories[0]?.id ?? "",
@@ -350,16 +352,20 @@ export function PosApp({
           ? current.map((item) => (item.id === order.id ? order : item))
           : [order, ...current],
       );
-      setLastOrder((current) => (order.status === "paid" ? order : current));
+      if (order.status === "paid") {
+        setLastOrder(order);
+        setPrintMode("receipt");
+      } else {
+        setPrintMode("kitchen");
+      }
+      setPrintOrder(order);
       setCart([]);
       setCashReceived("");
       setEditingOrderId(null);
       setCheckoutMode("now");
       setIsOrderConfirmOpen(false);
 
-      if (order.status === "paid") {
-        window.setTimeout(() => window.print(), 350);
-      }
+      window.setTimeout(() => window.print(), 350);
     } finally {
       setIsSavingOrder(false);
     }
@@ -763,6 +769,12 @@ export function PosApp({
     window.location.href = `/api/reports/export?${params.toString()}`;
   }
 
+  function printPaidReceipt(order: Order) {
+    setPrintMode("receipt");
+    setPrintOrder(order);
+    window.setTimeout(() => window.print(), 100);
+  }
+
   return (
     <main className="min-h-screen bg-[#f4efe2] text-[#24351f]">
       <section className="app-shell mx-auto flex min-h-screen w-full max-w-[1440px] flex-col px-5 py-4">
@@ -825,9 +837,58 @@ export function PosApp({
         </nav>
 
         {activeTab === "kasir" && (
-          <div className="grid flex-1 gap-4 lg:grid-cols-[1fr_420px]">
-            <section className="rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4">
-              <div className="mb-4 flex flex-wrap items-center gap-3">
+          <div className="grid flex-1 gap-4 xl:h-[calc(100vh-178px)] xl:min-h-[620px] xl:grid-cols-[280px_minmax(0,1fr)_420px]">
+            <section className="rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4 xl:flex xl:min-h-0 xl:flex-col">
+              <h2 className="mb-3 text-lg font-black">Transaksi Berjalan</h2>
+              {inProgressOrders.length === 0 ? (
+                <div className="grid min-h-32 place-items-center rounded-[8px] border border-dashed border-[#c8b98f] px-3 text-center text-sm font-bold text-[#68705c]">
+                  Belum ada pesanan dine in yang belum bayar.
+                </div>
+              ) : (
+                <div className="space-y-3 xl:min-h-0 xl:flex-1 xl:overflow-y-auto xl:pr-1">
+                  {inProgressOrders.map((order) => (
+                    <div
+                      key={order.id}
+                      className="rounded-[8px] border border-[#e1d5b8] bg-white p-3"
+                    >
+                      <div className="mb-2 flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate font-black">{order.orderNumber}</p>
+                          <p className="text-xs font-bold text-[#68705c]">
+                            {formatOrderDate(order.createdAt)}
+                          </p>
+                        </div>
+                        <p className="font-black text-[#d85f32]">
+                          {formatRupiah(order.total)}
+                        </p>
+                      </div>
+                      <p className="mb-3 text-sm font-bold text-[#68705c]">
+                        {order.items.length} jenis item - {order.orderType}
+                      </p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => startEditOrder(order, "later")}
+                          className="h-10 rounded-[8px] bg-[#eef3df] text-sm font-black text-[#28451f]"
+                        >
+                          Tambah/Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => startEditOrder(order, "now")}
+                          className="h-10 rounded-[8px] bg-[#28451f] text-sm font-black text-white"
+                        >
+                          Bayar
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            <section className="rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4 xl:flex xl:min-h-0 xl:flex-col">
+              <div className="mb-4 flex shrink-0 flex-wrap items-center gap-3">
                 <div className="flex h-12 min-w-[280px] flex-1 items-center gap-2 rounded-[8px] border border-[#d6c9aa] bg-white px-3">
                   <Search size={20} />
                   <input
@@ -854,52 +915,7 @@ export function PosApp({
                 </div>
               </div>
 
-              {inProgressOrders.length > 0 && (
-                <div className="mb-4 rounded-[8px] border border-[#d6c9aa] bg-[#fff8ec] p-3">
-                  <h2 className="mb-3 text-lg font-black">Transaksi Berjalan</h2>
-                  <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-                    {inProgressOrders.map((order) => (
-                      <div
-                        key={order.id}
-                        className="rounded-[8px] border border-[#e1d5b8] bg-white p-3"
-                      >
-                        <div className="mb-2 flex items-start justify-between gap-3">
-                          <div>
-                            <p className="font-black">{order.orderNumber}</p>
-                            <p className="text-sm font-bold text-[#68705c]">
-                              {formatOrderDate(order.createdAt)}
-                            </p>
-                          </div>
-                          <p className="font-black text-[#d85f32]">
-                            {formatRupiah(order.total)}
-                          </p>
-                        </div>
-                        <p className="mb-3 text-sm font-bold text-[#68705c]">
-                          {order.items.length} jenis item - {order.orderType}
-                        </p>
-                        <div className="grid grid-cols-2 gap-2">
-                          <button
-                            type="button"
-                            onClick={() => startEditOrder(order, "later")}
-                            className="h-10 rounded-[8px] bg-[#eef3df] text-sm font-black text-[#28451f]"
-                          >
-                            Tambah/Edit
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => startEditOrder(order, "now")}
-                            className="h-10 rounded-[8px] bg-[#28451f] text-sm font-black text-white"
-                          >
-                            Bayar
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">
+              <div className="grid grid-cols-2 gap-3 overflow-y-auto pr-1 xl:min-h-0 xl:flex-1 2xl:grid-cols-3">
                 {visibleProducts.map((product) => (
                   <button
                     key={product.id}
@@ -937,7 +953,7 @@ export function PosApp({
               </div>
             </section>
 
-            <aside className="rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4">
+            <aside className="rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4 xl:sticky xl:top-4 xl:flex xl:h-full xl:min-h-0 xl:flex-col">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="flex items-center gap-2 text-xl font-black">
                   <ShoppingCart size={22} />{" "}
@@ -967,7 +983,7 @@ export function PosApp({
                 ))}
               </div>
 
-              <div className="max-h-[42vh] space-y-3 overflow-y-auto pr-1">
+              <div className="space-y-3 overflow-y-auto pr-1 xl:min-h-0 xl:flex-1">
                 {cart.length === 0 && (
                   <div className="grid min-h-40 place-items-center rounded-[8px] border border-dashed border-[#c8b98f] text-center text-[#68705c]">
                     Pilih menu untuk mulai mencatat pesanan.
@@ -1017,7 +1033,7 @@ export function PosApp({
                 ))}
               </div>
 
-              <div className="mt-4 space-y-3 border-t border-[#d6c9aa] pt-4">
+              <div className="mt-4 shrink-0 space-y-3 border-t border-[#d6c9aa] pt-4">
                 <div className="flex items-center justify-between text-xl font-black">
                   <span>Total</span>
                   <span>{formatRupiah(cartTotal)}</span>
@@ -1428,6 +1444,7 @@ export function PosApp({
                 order={lastOrder}
                 onEdit={startEditOrder}
                 onDelete={deleteOrder}
+                onPrint={printPaidReceipt}
                 canEdit={canVoidOrder}
               />
             </div>
@@ -1658,7 +1675,7 @@ export function PosApp({
         onCancel={() => setIsOrderConfirmOpen(false)}
         onConfirm={submitOrder}
       />
-      <PrintableReceipt order={lastOrder} />
+      <PrintableReceipt order={printOrder} mode={printMode} />
     </main>
   );
 }
@@ -1826,11 +1843,13 @@ function OrderDetail({
   order,
   onEdit,
   onDelete,
+  onPrint,
   canEdit,
 }: {
   order: Order | null;
   onEdit: (order: Order) => void;
   onDelete: (order: Order) => void;
+  onPrint: (order: Order) => void;
   canEdit: boolean;
 }) {
   if (!order) {
@@ -1869,7 +1888,7 @@ function OrderDetail({
             </>
           )}
           <button
-            onClick={() => window.print()}
+            onClick={() => onPrint(order)}
             className="flex h-10 items-center gap-2 rounded-[8px] bg-[#28451f] px-3 text-sm font-black text-white"
           >
             <Printer size={16} /> Cetak
@@ -2075,8 +2094,43 @@ function FormInput({
   );
 }
 
-function PrintableReceipt({ order }: { order: Order | null }) {
+function PrintableReceipt({
+  order,
+  mode,
+}: {
+  order: Order | null;
+  mode: "receipt" | "kitchen";
+}) {
   if (!order) return null;
+
+  if (mode === "kitchen") {
+    return (
+      <div className="receipt-print hidden">
+        <div className="receipt-paper">
+          <div className="receipt-head">
+            <h2>Kitchen Order</h2>
+            <p>Joyful Healthy Bistro & Cafe</p>
+          </div>
+          <div className="receipt-line" />
+          <p>No: {order.orderNumber}</p>
+          <p>{formatOrderDate(order.createdAt)}</p>
+          <p>Jenis: {order.orderType}</p>
+          <p>Status: Belum bayar</p>
+          <div className="receipt-line" />
+          {order.items.map((item) => (
+            <div key={item.id ?? item.productName} className="receipt-item">
+              <p className="receipt-item-title">
+                {item.quantity}x {item.productName}
+              </p>
+              {item.note && <p>Catatan: {item.note}</p>}
+            </div>
+          ))}
+          <div className="receipt-line" />
+          <p className="center">Untuk kitchen</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="receipt-print hidden">
