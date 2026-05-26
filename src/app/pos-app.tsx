@@ -776,8 +776,16 @@ export function PosApp({
   }
 
   return (
-    <main className="min-h-screen bg-[#f4efe2] text-[#24351f] lg:h-screen lg:overflow-hidden">
-      <section className="app-shell mx-auto flex min-h-screen w-full max-w-[1440px] flex-col px-5 py-4 lg:h-screen lg:min-h-0">
+    <main
+      className={`min-h-screen bg-[#f4efe2] text-[#24351f] ${
+        activeTab === "kasir" ? "lg:h-screen lg:overflow-hidden" : ""
+      }`}
+    >
+      <section
+        className={`app-shell mx-auto flex min-h-screen w-full max-w-[1440px] flex-col px-5 py-4 ${
+          activeTab === "kasir" ? "lg:h-screen lg:min-h-0" : ""
+        }`}
+      >
         <header className="mb-4 flex shrink-0 flex-col gap-4 rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] px-4 py-3 shadow-sm xl:flex-row xl:items-center xl:justify-between">
           <div className="flex items-center gap-3">
             <Image
@@ -955,7 +963,7 @@ export function PosApp({
               </div>
             </section>
 
-            <aside className="min-w-0 rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-3 lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:overflow-hidden xl:p-4">
+            <aside className="min-w-0 rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-3 lg:flex lg:h-[calc(100%+36px)] lg:min-h-0 lg:flex-col lg:overflow-hidden xl:p-4">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="flex items-center gap-2 text-xl font-black">
                   <ShoppingCart size={22} />{" "}
@@ -985,9 +993,9 @@ export function PosApp({
                 ))}
               </div>
 
-              <div className="h-[220px] min-h-[180px] space-y-3 overflow-y-auto pr-1 lg:flex-none 2xl:h-[300px]">
+              <div className="h-[160px] min-h-[130px] space-y-3 overflow-y-auto pr-1 lg:flex-none xl:h-[220px] 2xl:h-[300px]">
                 {cart.length === 0 && (
-                  <div className="grid min-h-full place-items-center rounded-[8px] border border-dashed border-[#c8b98f] px-3 text-center text-[#68705c]">
+                  <div className="grid min-h-full place-items-center rounded-[8px] border border-dashed border-[#c8b98f] px-3 text-center text-sm text-[#68705c] xl:text-base">
                     Pilih menu untuk mulai mencatat pesanan.
                   </div>
                 )}
@@ -1035,7 +1043,7 @@ export function PosApp({
                 ))}
               </div>
 
-              <div className="mt-3 min-h-0 space-y-2 overflow-y-auto border-t border-[#d6c9aa] pt-3">
+              <div className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto border-t border-[#d6c9aa] pt-3">
                 <div className="flex items-center justify-between text-lg font-black">
                   <span>Total</span>
                   <span>{formatRupiah(cartTotal)}</span>
@@ -1043,7 +1051,7 @@ export function PosApp({
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => setCheckoutMode("now")}
-                    className={`h-10 rounded-[8px] font-bold ${
+                    className={`h-11 rounded-[8px] font-bold ${
                       checkoutMode === "now"
                         ? "bg-[#28451f] text-white"
                         : "bg-[#eef3df]"
@@ -1053,7 +1061,7 @@ export function PosApp({
                   </button>
                   <button
                     onClick={() => setCheckoutMode("later")}
-                    className={`h-10 rounded-[8px] font-bold ${
+                    className={`h-11 rounded-[8px] font-bold ${
                       checkoutMode === "later"
                         ? "bg-[#28451f] text-white"
                         : "bg-[#eef3df]"
@@ -1066,7 +1074,7 @@ export function PosApp({
                   <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => setPaymentMethod("Tunai")}
-                    className={`flex h-10 items-center justify-center gap-2 rounded-[8px] font-bold ${
+                    className={`flex h-11 items-center justify-center gap-2 rounded-[8px] font-bold ${
                       paymentMethod === "Tunai"
                         ? "bg-[#d85f32] text-white"
                         : "bg-[#eef3df]"
@@ -1076,7 +1084,7 @@ export function PosApp({
                   </button>
                   <button
                     onClick={() => setPaymentMethod("QRIS manual")}
-                    className={`flex h-10 items-center justify-center gap-2 rounded-[8px] font-bold ${
+                    className={`flex h-11 items-center justify-center gap-2 rounded-[8px] font-bold ${
                       paymentMethod === "QRIS manual"
                         ? "bg-[#d85f32] text-white"
                         : "bg-[#eef3df]"
@@ -1093,7 +1101,7 @@ export function PosApp({
                       onChange={(event) => setCashReceived(event.target.value)}
                       inputMode="numeric"
                       placeholder="Uang diterima"
-                      className="h-10 w-full rounded-[8px] border border-[#d6c9aa] px-3 font-bold outline-none"
+                      className="h-11 w-full rounded-[8px] border border-[#d6c9aa] px-3 font-bold outline-none"
                     />
                     <p className="mt-2 text-sm font-bold text-[#68705c]">
                       Kembalian: {formatRupiah(changeAmount)}
@@ -1103,7 +1111,7 @@ export function PosApp({
                 <button
                   onClick={requestOrderConfirmation}
                   disabled={cart.length === 0 || isSavingOrder}
-                  className="flex h-12 w-full items-center justify-center gap-2 rounded-[8px] bg-[#28451f] font-black text-white disabled:opacity-50"
+                  className="flex h-13 min-h-13 w-full items-center justify-center gap-2 rounded-[8px] bg-[#28451f] text-base font-black text-white disabled:opacity-50"
                 >
                   <Printer size={22} />{" "}
                   {isSavingOrder
