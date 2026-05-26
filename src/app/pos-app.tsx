@@ -18,7 +18,7 @@ import {
   Utensils,
   Users,
 } from "lucide-react";
-import { FormEvent, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
 import { formatOrderDate, formatRupiah } from "@/lib/format";
 import {
   getReportRangeWindow,
@@ -107,6 +107,11 @@ type AuditLog = {
 
 type ActiveTab = "kasir" | "menu" | "riwayat" | "pengguna" | "audit";
 
+type ToastMessage = {
+  id: number;
+  message: string;
+};
+
 const emptyProductForm = {
   name: "",
   categoryId: "",
@@ -172,6 +177,9 @@ export function PosApp({
   });
   const [userPasswords, setUserPasswords] = useState<Record<string, string>>({});
   const [isSavingUser, setIsSavingUser] = useState(false);
+  const [toast, setToast] = useState<ToastMessage | null>(null);
+  const [bouncingProductId, setBouncingProductId] = useState<string | null>(null);
+  const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const canManageMenu = user.role === "owner" || user.role === "admin";
   const canManageUsers = user.role === "owner" || user.role === "admin";
   const canViewReports = user.role === "owner" || user.role === "admin";
@@ -240,13 +248,15 @@ export function PosApp({
   function addToCart(product: Product) {
     if (!product.isAvailable) return;
 
+    let nextQuantity = 1;
     setCart((current) => {
       const existing = current.find((item) => item.productId === product.id);
 
       if (existing) {
+        nextQuantity = existing.quantity + 1;
         return current.map((item) =>
           item.productId === product.id
-            ? { ...item, quantity: item.quantity + 1 }
+            ? { ...item, quantity: nextQuantity }
             : item,
         );
       }
@@ -263,6 +273,28 @@ export function PosApp({
         },
       ];
     });
+    triggerMenuBounce(product.id);
+    showToast(
+      nextQuantity > 1
+        ? `${product.name} jadi ${nextQuantity} item`
+        : `${product.name} ditambahkan ke pesanan`,
+    );
+  }
+
+  function showToast(message: string) {
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current);
+    }
+
+    setToast({ id: Date.now(), message });
+    toastTimeoutRef.current = setTimeout(() => setToast(null), 2400);
+  }
+
+  function triggerMenuBounce(productId: string) {
+    setBouncingProductId(productId);
+    window.setTimeout(() => {
+      setBouncingProductId((current) => (current === productId ? null : current));
+    }, 190);
   }
 
   function updateQuantity(lineId: string, direction: 1 | -1) {
@@ -364,6 +396,11 @@ export function PosApp({
       setEditingOrderId(null);
       setCheckoutMode("now");
       setIsOrderConfirmOpen(false);
+      showToast(
+        order.status === "paid"
+          ? "Transaksi selesai dan nota dicetak"
+          : "Pesanan masuk ke Transaksi Berjalan",
+      );
 
       window.setTimeout(() => window.print(), 350);
     } finally {
@@ -929,7 +966,9 @@ export function PosApp({
                   <button
                     key={product.id}
                     onClick={() => addToCart(product)}
-                    className="min-w-0 overflow-hidden rounded-[8px] border border-[#d6c9aa] bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md disabled:opacity-55"
+                    className={`min-w-0 overflow-hidden rounded-[8px] border border-[#d6c9aa] bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md disabled:opacity-55 ${
+                      bouncingProductId === product.id ? "menu-tap-bounce" : ""
+                    }`}
                     disabled={!product.isAvailable}
                   >
                     <div className="relative aspect-[4/3] bg-[#eef3df]">
@@ -1692,6 +1731,7 @@ export function PosApp({
         onCancel={() => setIsOrderConfirmOpen(false)}
         onConfirm={submitOrder}
       />
+      <Toast toast={toast} />
       <PrintableReceipt order={printOrder} mode={printMode} />
     </main>
   );
@@ -1704,6 +1744,19 @@ function Summary({ label, value }: { label: string; value: string }) {
         {label}
       </p>
       <p className="mt-1 text-lg font-black leading-tight">{value}</p>
+    </div>
+  );
+}
+
+function Toast({ toast }: { toast: ToastMessage | null }) {
+  if (!toast) return null;
+
+  return (
+    <div
+      key={toast.id}
+      className="fixed bottom-5 right-5 z-[60] max-w-[320px] rounded-[8px] border border-[#d6c9aa] bg-[#28451f] px-4 py-3 text-sm font-black text-white shadow-xl"
+    >
+      {toast.message}
     </div>
   );
 }

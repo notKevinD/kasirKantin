@@ -25,6 +25,42 @@ input {
 
 button {
   touch-action: manipulation;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+a,
+select,
+input[type="file"],
+input[type="date"],
+label:has(input[type="file"]) {
+  cursor: pointer;
+}
+
+input,
+textarea {
+  cursor: text;
+}
+
+@keyframes menu-tap-bounce {
+  0% {
+    transform: scale(1);
+  }
+
+  45% {
+    transform: scale(0.97);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+.menu-tap-bounce {
+  animation: menu-tap-bounce 180ms ease-out;
 }
 
 @media print {
