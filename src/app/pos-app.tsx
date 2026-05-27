@@ -877,7 +877,7 @@ export function PosApp({
     );
     if (!amountText) return;
 
-    const amount = Number(amountText);
+    const amount = Number(onlyDigits(amountText));
     const reason = window.prompt("Alasan refund/retur?")?.trim();
     if (!amount || amount <= 0 || !reason) return;
 
@@ -1076,12 +1076,12 @@ export function PosApp({
   return (
     <main
       className={`min-h-screen bg-[#f4efe2] text-[#24351f] ${
-        activeTab === "riwayat" ? "" : "lg:h-screen lg:overflow-hidden"
+        activeTab === "kasir" ? "lg:min-h-screen" : ""
       }`}
     >
       <section
         className={`app-shell mx-auto flex min-h-screen w-full max-w-[1440px] flex-col px-5 py-4 ${
-          activeTab === "riwayat" ? "" : "lg:h-screen lg:min-h-0"
+          activeTab === "kasir" ? "" : ""
         }`}
       >
         <header className="mb-4 flex shrink-0 flex-col gap-4 rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] px-4 py-3 shadow-sm xl:flex-row xl:items-center xl:justify-between">
@@ -1143,7 +1143,7 @@ export function PosApp({
         </nav>
 
         {activeTab === "kasir" && (
-          <section className="flex flex-1 flex-col gap-3 lg:min-h-0 lg:overflow-hidden">
+          <section className="flex flex-1 flex-col gap-3 lg:min-h-[720px]">
             <div className="min-w-0 shrink-0 overflow-hidden rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-3">
               {currentShift ? (
                 <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(420px,520px)]">
@@ -1172,7 +1172,7 @@ export function PosApp({
                   >
                     <input
                       value={closingCash}
-                      onChange={(event) => setClosingCash(event.target.value)}
+                      onChange={(event) => setClosingCash(onlyDigits(event.target.value))}
                       inputMode="numeric"
                       placeholder="Uang laci saat tutup"
                       className="h-11 min-w-0 rounded-[8px] border border-[#d6c9aa] bg-white px-3 font-bold outline-none"
@@ -1205,7 +1205,7 @@ export function PosApp({
                 >
                   <input
                     value={openingCash}
-                    onChange={(event) => setOpeningCash(event.target.value)}
+                    onChange={(event) => setOpeningCash(onlyDigits(event.target.value))}
                     inputMode="numeric"
                     placeholder="Modal awal kasir"
                     className="h-11 min-w-0 rounded-[8px] border border-[#d6c9aa] bg-white px-3 font-bold outline-none"
@@ -1226,8 +1226,8 @@ export function PosApp({
               )}
             </div>
 
-            <div className="grid flex-1 gap-3 lg:min-h-0 lg:grid-cols-[210px_minmax(0,1fr)_330px] lg:overflow-hidden xl:gap-4 xl:grid-cols-[280px_minmax(0,1fr)_420px]">
-            <section className="min-w-0 rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-3 lg:flex lg:min-h-0 lg:flex-col lg:overflow-hidden xl:p-4">
+            <div className="grid flex-1 gap-3 lg:min-h-[620px] lg:grid-cols-[210px_minmax(0,1fr)_330px] xl:gap-4 xl:grid-cols-[280px_minmax(0,1fr)_420px]">
+            <section className="min-w-0 rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-3 lg:flex lg:max-h-[720px] lg:min-h-[620px] lg:flex-col lg:overflow-hidden xl:p-4">
               <h2 className="mb-3 text-lg font-black">Transaksi Berjalan</h2>
               {inProgressOrders.length === 0 ? (
                 <div className="grid min-h-32 place-items-center rounded-[8px] border border-dashed border-[#c8b98f] px-3 text-center text-sm font-bold text-[#68705c]">
@@ -1291,7 +1291,7 @@ export function PosApp({
               )}
             </section>
 
-            <section className="min-w-0 rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-3 lg:flex lg:min-h-0 lg:flex-col lg:overflow-hidden xl:p-4">
+            <section className="min-w-0 rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-3 lg:flex lg:max-h-[720px] lg:min-h-[620px] lg:flex-col lg:overflow-hidden xl:p-4">
               <div className="mb-4 flex shrink-0 flex-wrap items-center gap-3">
                 <div className="flex h-12 min-w-[280px] flex-1 items-center gap-2 rounded-[8px] border border-[#d6c9aa] bg-white px-3">
                   <Search size={20} />
@@ -1361,7 +1361,7 @@ export function PosApp({
               </div>
             </section>
 
-            <aside className="min-w-0 rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-3 lg:h-full lg:min-h-0 lg:overflow-y-auto xl:p-4">
+            <aside className="min-w-0 rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-3 lg:max-h-[720px] lg:min-h-[620px] lg:overflow-y-auto xl:p-4">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="flex items-center gap-2 text-xl font-black">
                   <ShoppingCart size={22} />{" "}
@@ -1477,7 +1477,7 @@ export function PosApp({
                     </select>
                     <input
                       value={discount}
-                      onChange={(event) => setDiscount(event.target.value)}
+                      onChange={(event) => setDiscount(onlyDigits(event.target.value))}
                       inputMode="numeric"
                       placeholder="Diskon"
                       className="h-11 w-full rounded-[8px] border border-[#d6c9aa] px-3 font-bold outline-none"
@@ -1550,7 +1550,7 @@ export function PosApp({
                   <div>
                     <input
                       value={cashReceived}
-                      onChange={(event) => setCashReceived(event.target.value)}
+                      onChange={(event) => setCashReceived(onlyDigits(event.target.value))}
                       inputMode="numeric"
                       placeholder="Uang diterima"
                       className="h-11 w-full rounded-[8px] border border-[#d6c9aa] px-3 font-bold outline-none"
@@ -1583,8 +1583,8 @@ export function PosApp({
         )}
 
         {activeTab === "menu" && canManageMenu && (
-          <section className="grid flex-1 gap-4 lg:min-h-0 lg:grid-cols-[280px_minmax(0,1fr)_340px] lg:overflow-hidden xl:grid-cols-[320px_minmax(0,1fr)_400px]">
-            <div className="min-w-0 overflow-y-auto pr-1 lg:min-h-0">
+          <section className="grid gap-4 lg:min-h-[680px] lg:grid-cols-[280px_minmax(0,1fr)_340px] xl:grid-cols-[320px_minmax(0,1fr)_400px]">
+            <div className="min-w-0 overflow-y-auto pr-1 lg:max-h-[680px]">
               <form
                 onSubmit={addCategory}
                 className="rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4"
@@ -1638,7 +1638,7 @@ export function PosApp({
               </form>
             </div>
 
-            <div className="flex min-w-0 flex-col overflow-hidden rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4 lg:min-h-0">
+            <div className="flex min-w-0 flex-col overflow-hidden rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4 lg:min-h-[680px]">
               <div className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-3">
                 <h2 className="text-xl font-black">Daftar Menu</h2>
                 <div className="flex h-12 min-w-[260px] flex-1 items-center gap-2 rounded-[8px] border border-[#d6c9aa] bg-white px-3 md:max-w-md">
@@ -1657,13 +1657,13 @@ export function PosApp({
                 </div>
               )}
               <div className="min-h-0 overflow-y-auto pr-1">
-                <div className="grid gap-3 md:grid-cols-2">
+                <div className="grid gap-3 xl:grid-cols-2">
                 {visibleMenuProducts.map((product) => (
                   <div
                     key={product.id}
                     className="min-w-0 overflow-hidden rounded-[8px] border border-[#e1d5b8] bg-white"
                   >
-                    <div className="relative h-32 bg-[#eef3df]">
+                    <div className="relative aspect-[4/3] bg-[#eef3df]">
                         {product.imageUrl ? (
                           <Image
                             src={getDisplayImageUrl(product.imageUrl)}
@@ -1686,10 +1686,10 @@ export function PosApp({
                           {formatRupiah(product.price)}
                         </p>
                       </div>
-                    <div className="mt-3 grid grid-cols-3 gap-2">
+                    <div className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(82px,1fr))] gap-2">
                       <button
                         onClick={() => toggleProduct(product)}
-                        className={`h-10 rounded-[8px] text-sm font-bold ${
+                        className={`min-h-10 rounded-[8px] px-2 py-2 text-sm font-bold leading-tight ${
                           product.isAvailable
                             ? "bg-[#eef3df] text-[#28451f]"
                             : "bg-[#f5ded5] text-[#a13f28]"
@@ -1699,13 +1699,13 @@ export function PosApp({
                       </button>
                       <button
                         onClick={() => startEditProduct(product)}
-                        className="flex h-10 items-center justify-center gap-1 rounded-[8px] bg-[#f4efe2] text-sm font-bold text-[#28451f]"
+                        className="flex min-h-10 items-center justify-center gap-1 rounded-[8px] bg-[#f4efe2] px-2 py-2 text-sm font-bold leading-tight text-[#28451f]"
                       >
                         <Pencil size={15} /> Edit
                       </button>
                       <button
                         onClick={() => deleteProduct(product)}
-                        className="h-10 rounded-[8px] bg-[#f5ded5] text-sm font-bold text-[#a13f28]"
+                        className="min-h-10 rounded-[8px] bg-[#f5ded5] px-2 py-2 text-sm font-bold leading-tight text-[#a13f28]"
                       >
                         Hapus
                       </button>
@@ -1717,7 +1717,7 @@ export function PosApp({
               </div>
             </div>
 
-            <div className="min-w-0 overflow-y-auto pr-1 lg:min-h-0">
+            <div className="min-w-0 overflow-y-auto pr-1 lg:max-h-[680px]">
               <form
                 onSubmit={addProduct}
                 className="rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4"
@@ -2629,7 +2629,13 @@ function FormInput({
         type={type}
         value={value}
         inputMode={inputMode}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(event) =>
+          onChange(
+            inputMode === "numeric"
+              ? onlyDigits(event.target.value)
+              : event.target.value,
+          )
+        }
         className="h-12 w-full rounded-[8px] border border-[#d6c9aa] bg-white px-3 outline-none"
       />
     </label>
@@ -2836,6 +2842,10 @@ function getDateInputValue(date: Date) {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function onlyDigits(value: string) {
+  return value.replace(/\D/g, "");
 }
 
 function matchesTransactionQuery(order: Order, query: string) {
