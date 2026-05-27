@@ -168,6 +168,13 @@ type ToastMessage = {
   type: "success" | "error" | "info";
 };
 
+type ActionModalState =
+  | { type: "deleteProduct"; product: Product }
+  | { type: "deleteCategory"; category: Category }
+  | { type: "deleteOrder"; order: Order; reason: string }
+  | { type: "refundOrder"; order: Order; amount: string; reason: string }
+  | null;
+
 const emptyProductForm = {
   name: "",
   categoryId: "",
@@ -250,6 +257,8 @@ export function PosApp({
   const [isOrderConfirmOpen, setIsOrderConfirmOpen] = useState(false);
   const [isOrderEditModalOpen, setIsOrderEditModalOpen] = useState(false);
   const [isProductEditModalOpen, setIsProductEditModalOpen] = useState(false);
+  const [actionModal, setActionModal] = useState<ActionModalState>(null);
+  const [isActionSaving, setIsActionSaving] = useState(false);
   const [userForm, setUserForm] = useState({
     name: "",
     username: "",
@@ -676,19 +685,17 @@ export function PosApp({
   }
 
   async function deleteProduct(product: Product) {
-    const confirmed = window.confirm(
-      `Hapus menu "${product.name}"? Riwayat transaksi lama tetap tersimpan.`,
-    );
+    setActionModal({ type: "deleteProduct", product });
+  }
 
-    if (!confirmed) return;
-
+  async function confirmDeleteProduct(product: Product) {
     const response = await fetch(`/api/products/${product.id}`, {
       method: "DELETE",
     });
 
     if (!response.ok) {
       showToast("Menu belum bisa dihapus.", "error");
-      return;
+      return false;
     }
 
     setProducts((current) => current.filter((item) => item.id !== product.id));
@@ -700,6 +707,7 @@ export function PosApp({
       resetProductForm();
     }
     showToast(`Menu ${product.name} berhasil dihapus.`, "success");
+    return true;
   }
 
   async function addCategory(event: FormEvent<HTMLFormElement>) {
@@ -751,16 +759,17 @@ export function PosApp({
       return;
     }
 
-    const confirmed = window.confirm(`Hapus kategori "${category.name}"?`);
-    if (!confirmed) return;
+    setActionModal({ type: "deleteCategory", category });
+  }
 
+  async function confirmDeleteCategory(category: Category) {
     const response = await fetch(`/api/categories/${category.id}`, {
       method: "DELETE",
     });
 
     if (!response.ok) {
       showToast(await getErrorMessage(response, "Kategori belum bisa dihapus."), "error");
-      return;
+      return false;
     }
 
     const nextCategories = categories.filter((item) => item.id !== category.id);
@@ -777,6 +786,7 @@ export function PosApp({
       }));
     }
     showToast(`Kategori ${category.name} berhasil dihapus.`, "success");
+    return true;
   }
 
   async function toggleProduct(product: Product) {
@@ -871,17 +881,14 @@ export function PosApp({
 
   async function deleteOrder(order: Order) {
     if (!canVoidOrder) {
-      alert("Akses void transaksi hanya untuk admin/owner.");
+      showToast("Akses void transaksi hanya untuk admin/owner.", "error");
       return;
     }
 
-    const reason = window.prompt(
-      `Alasan void transaksi ${order.orderNumber}?`,
-      order.voidReason ?? "",
-    );
+    setActionModal({ type: "deleteOrder", order, reason: order.voidReason ?? "" });
+  }
 
-    if (!reason?.trim()) return;
-
+  async function confirmDeleteOrder(order: Order, reason: string) {
     const response = await fetch(`/api/orders/${order.id}`, {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
@@ -893,7 +900,7 @@ export function PosApp({
         await getErrorMessage(response, "Transaksi belum bisa dibatalkan."),
         "error",
       );
-      return;
+      return false;
     }
 
     const nextOrders = orders.map((item) =>
@@ -908,18 +915,20 @@ export function PosApp({
       cancelEditOrder();
     }
     showToast(`Transaksi ${order.orderNumber} berhasil dibatalkan.`, "success");
+    return true;
   }
 
   async function refundOrder(order: Order) {
-    const amountText = window.prompt(
-      `Nominal refund untuk ${order.orderNumber}?`,
-      String(Math.max(netOrderTotal(order), 0)),
-    );
-    if (!amountText) return;
+    setActionModal({
+      type: "refundOrder",
+      order,
+      amount: String(Math.max(netOrderTotal(order), 0)),
+      reason: "",
+    });
+  }
 
+  async function confirmRefundOrder(order: Order, amountText: string, reason: string) {
     const amount = Number(onlyDigits(amountText));
-    const reason = window.prompt("Alasan refund/retur?")?.trim();
-    if (!amount || amount <= 0 || !reason) return;
 
     const response = await fetch(`/api/orders/${order.id}/refund`, {
       method: "POST",
@@ -929,7 +938,7 @@ export function PosApp({
 
     if (!response.ok) {
       showToast(await getErrorMessage(response, "Refund belum bisa disimpan."), "error");
-      return;
+      return false;
     }
 
     const updatedOrder = (await response.json()) as Order;
@@ -942,6 +951,59 @@ export function PosApp({
       "success",
     );
     refreshAuditLogs();
+    return true;
+  }
+
+  async function confirmActionModal() {
+    if (!actionModal || isActionSaving) return;
+
+    if (actionModal.type === "deleteOrder" && !actionModal.reason.trim()) {
+      showToast("Alasan batal/void wajib diisi.", "error");
+      return;
+    }
+
+    if (actionModal.type === "refundOrder") {
+      const amount = Number(onlyDigits(actionModal.amount));
+      if (!amount || amount <= 0) {
+        showToast("Nominal refund harus lebih dari 0.", "error");
+        return;
+      }
+
+      if (!actionModal.reason.trim()) {
+        showToast("Alasan refund wajib diisi.", "error");
+        return;
+      }
+    }
+
+    setIsActionSaving(true);
+
+    try {
+      let success = false;
+
+      if (actionModal.type === "deleteProduct") {
+        success = await confirmDeleteProduct(actionModal.product);
+      }
+
+      if (actionModal.type === "deleteCategory") {
+        success = await confirmDeleteCategory(actionModal.category);
+      }
+
+      if (actionModal.type === "deleteOrder") {
+        success = await confirmDeleteOrder(actionModal.order, actionModal.reason);
+      }
+
+      if (actionModal.type === "refundOrder") {
+        success = await confirmRefundOrder(
+          actionModal.order,
+          actionModal.amount,
+          actionModal.reason,
+        );
+      }
+
+      if (success) setActionModal(null);
+    } finally {
+      setIsActionSaving(false);
+    }
   }
 
   async function openShift(event: FormEvent<HTMLFormElement>) {
@@ -2479,6 +2541,14 @@ export function PosApp({
         </div>
       )}
 
+      <ActionPromptModal
+        action={actionModal}
+        isSaving={isActionSaving}
+        onChange={setActionModal}
+        onCancel={() => setActionModal(null)}
+        onConfirm={confirmActionModal}
+      />
+
       <OrderConfirmationModal
         isOpen={isOrderConfirmOpen}
         isSaving={isSavingOrder}
@@ -2545,6 +2615,119 @@ function Toast({ toast }: { toast: ToastMessage | null }) {
     >
       <p className="text-xs font-black uppercase opacity-80">{label}</p>
       <p className="font-black leading-snug">{toast.message}</p>
+    </div>
+  );
+}
+
+function ActionPromptModal({
+  action,
+  isSaving,
+  onChange,
+  onCancel,
+  onConfirm,
+}: {
+  action: ActionModalState;
+  isSaving: boolean;
+  onChange: (action: ActionModalState) => void;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  if (!action) return null;
+
+  const title =
+    action.type === "deleteProduct"
+      ? "Hapus Menu"
+      : action.type === "deleteCategory"
+      ? "Hapus Kategori"
+      : action.type === "deleteOrder"
+      ? "Batalkan Transaksi"
+      : "Refund Transaksi";
+  const description =
+    action.type === "deleteProduct"
+      ? `Menu "${action.product.name}" akan dihapus. Riwayat transaksi lama tetap tersimpan.`
+      : action.type === "deleteCategory"
+      ? `Kategori "${action.category.name}" akan dihapus.`
+      : action.type === "deleteOrder"
+      ? `Isi alasan batal/void untuk transaksi ${action.order.orderNumber}.`
+      : `Isi nominal dan alasan refund untuk transaksi ${action.order.orderNumber}.`;
+  const confirmLabel =
+    action.type === "refundOrder"
+      ? "Simpan Refund"
+      : action.type === "deleteOrder"
+      ? "Batalkan Transaksi"
+      : "Hapus";
+
+  return (
+    <div className="fixed inset-0 z-[65] flex items-center justify-center bg-black/50 p-3">
+      <button
+        type="button"
+        onClick={onCancel}
+        className="absolute right-4 top-4 z-[70] grid h-11 w-11 place-items-center rounded-full bg-[#fffdf5] text-[#28451f] shadow-xl"
+        aria-label="Tutup dialog"
+      >
+        <X size={24} />
+      </button>
+      <div className="w-full max-w-md rounded-[8px] bg-[#fffdf5] p-4 shadow-2xl">
+        <h2 className="text-xl font-black">{title}</h2>
+        <p className="mt-1 text-sm font-bold text-[#68705c]">{description}</p>
+
+        {action.type === "refundOrder" && (
+          <label className="mt-4 block">
+            <span className="mb-1 block text-sm font-bold text-[#68705c]">
+              Nominal refund
+            </span>
+            <input
+              value={action.amount}
+              inputMode="numeric"
+              onChange={(event) =>
+                onChange({ ...action, amount: onlyDigits(event.target.value) })
+              }
+              className="h-11 w-full rounded-[8px] border border-[#d6c9aa] bg-white px-3 font-bold outline-none"
+            />
+          </label>
+        )}
+
+        {(action.type === "deleteOrder" || action.type === "refundOrder") && (
+          <label className="mt-4 block">
+            <span className="mb-1 block text-sm font-bold text-[#68705c]">
+              Alasan
+            </span>
+            <textarea
+              value={action.reason}
+              onChange={(event) =>
+                onChange({ ...action, reason: event.target.value })
+              }
+              placeholder={
+                action.type === "deleteOrder"
+                  ? "Contoh: pelanggan batal, salah input pesanan..."
+                  : "Contoh: menu habis, pelanggan retur..."
+              }
+              className="min-h-24 w-full resize-none rounded-[8px] border border-[#d6c9aa] bg-white px-3 py-2 font-bold outline-none"
+            />
+          </label>
+        )}
+
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={isSaving}
+            className="h-11 rounded-[8px] bg-[#eef3df] font-black text-[#28451f] disabled:opacity-50"
+          >
+            Kembali
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={isSaving}
+            className={`h-11 rounded-[8px] font-black text-white disabled:opacity-50 ${
+              action.type === "refundOrder" ? "bg-[#28451f]" : "bg-[#d85f32]"
+            }`}
+          >
+            {isSaving ? "Menyimpan..." : confirmLabel}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
