@@ -1144,10 +1144,10 @@ export function PosApp({
 
         {activeTab === "kasir" && (
           <section className="flex flex-1 flex-col gap-3 lg:min-h-0 lg:overflow-hidden">
-            <div className="shrink-0 rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-3">
+            <div className="min-w-0 shrink-0 overflow-hidden rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-3">
               {currentShift ? (
-                <div className="grid gap-3 lg:grid-cols-[1fr_420px]">
-                  <div className="grid gap-2 sm:grid-cols-4">
+                <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(420px,520px)]">
+                  <div className="grid min-w-0 gap-2 sm:grid-cols-2 lg:grid-cols-4">
                     <Summary label="Shift" value={currentShift.openedByName} />
                     <Summary
                       label="Modal awal"
@@ -1166,53 +1166,59 @@ export function PosApp({
                       )}
                     />
                   </div>
-                  <form onSubmit={closeShift} className="grid gap-2 sm:grid-cols-[1fr_1fr_auto_auto]">
+                  <form
+                    onSubmit={closeShift}
+                    className="grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto]"
+                  >
                     <input
                       value={closingCash}
                       onChange={(event) => setClosingCash(event.target.value)}
                       inputMode="numeric"
                       placeholder="Uang laci saat tutup"
-                      className="h-11 rounded-[8px] border border-[#d6c9aa] bg-white px-3 font-bold outline-none"
+                      className="h-11 min-w-0 rounded-[8px] border border-[#d6c9aa] bg-white px-3 font-bold outline-none"
                     />
                     <input
                       value={shiftNote}
                       onChange={(event) => setShiftNote(event.target.value)}
                       placeholder="Catatan shift"
-                      className="h-11 rounded-[8px] border border-[#d6c9aa] bg-white px-3 font-bold outline-none"
+                      className="h-11 min-w-0 rounded-[8px] border border-[#d6c9aa] bg-white px-3 font-bold outline-none"
                     />
                     <button
                       type="button"
                       onClick={printShiftReport}
-                      className="h-11 rounded-[8px] bg-[#eef3df] px-4 font-black text-[#28451f]"
+                      className="h-11 min-w-0 rounded-[8px] bg-[#eef3df] px-4 font-black text-[#28451f]"
                     >
                       Cetak Shift
                     </button>
                     <button
                       disabled={isSavingShift}
-                      className="h-11 rounded-[8px] bg-[#d85f32] px-4 font-black text-white disabled:opacity-50"
+                      className="h-11 min-w-0 rounded-[8px] bg-[#d85f32] px-4 font-black text-white disabled:opacity-50"
                     >
                       Tutup Shift
                     </button>
                   </form>
                 </div>
               ) : (
-                <form onSubmit={openShift} className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+                <form
+                  onSubmit={openShift}
+                  className="grid min-w-0 gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"
+                >
                   <input
                     value={openingCash}
                     onChange={(event) => setOpeningCash(event.target.value)}
                     inputMode="numeric"
                     placeholder="Modal awal kasir"
-                    className="h-11 rounded-[8px] border border-[#d6c9aa] bg-white px-3 font-bold outline-none"
+                    className="h-11 min-w-0 rounded-[8px] border border-[#d6c9aa] bg-white px-3 font-bold outline-none"
                   />
                   <input
                     value={shiftNote}
                     onChange={(event) => setShiftNote(event.target.value)}
                     placeholder="Catatan buka shift"
-                    className="h-11 rounded-[8px] border border-[#d6c9aa] bg-white px-3 font-bold outline-none"
+                    className="h-11 min-w-0 rounded-[8px] border border-[#d6c9aa] bg-white px-3 font-bold outline-none"
                   />
                   <button
                     disabled={isSavingShift}
-                    className="h-11 rounded-[8px] bg-[#28451f] px-4 font-black text-white disabled:opacity-50"
+                    className="h-11 min-w-0 rounded-[8px] bg-[#28451f] px-4 font-black text-white disabled:opacity-50"
                   >
                     Buka Shift
                   </button>
