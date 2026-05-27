@@ -11,10 +11,20 @@ export async function GET() {
     orderBy: { openedAt: "desc" },
     include: { orders: { include: { items: true, refunds: true } } },
   });
+  const shiftHistory = await prisma.cashierShift.findMany({
+    where: { status: "closed" },
+    orderBy: { closedAt: "desc" },
+    include: { orders: { include: { items: true, refunds: true } } },
+    take: 50,
+  });
 
   return NextResponse.json({
     currentShift,
     summary: currentShift ? summarizeShift(currentShift) : null,
+    shiftHistory: shiftHistory.map((shift) => ({
+      ...shift,
+      summary: summarizeShift(shift),
+    })),
   });
 }
 
@@ -151,19 +161,24 @@ type ShiftWithOrders = NonNullable<
 };
 
 function summarizeShift(shift: ShiftWithOrders) {
-  const paidOrders = shift.orders.filter((order) => order.status === "paid");
+  const paidOrders = shift.orders.filter((order) =>
+    ["paid", "partially_refunded", "refunded"].includes(order.status),
+  );
   const voidOrders = shift.orders.filter((order) => order.status === "cancelled");
   const refundedOrders = shift.orders.filter((order) => order.refundAmount > 0);
   const sumPayment = (method: string) =>
     paidOrders
       .filter((order) => order.paymentMethod === method)
-      .reduce((sum, order) => sum + order.total, 0);
+      .reduce((sum, order) => sum + Math.max(order.total - order.refundAmount, 0), 0);
 
   return {
     orderCount: paidOrders.length,
     voidCount: voidOrders.length,
     refundCount: refundedOrders.length,
-    sales: paidOrders.reduce((sum, order) => sum + order.total, 0),
+    sales: paidOrders.reduce(
+      (sum, order) => sum + Math.max(order.total - order.refundAmount, 0),
+      0,
+    ),
     cashSales: sumPayment("Tunai"),
     qrisSales: sumPayment("QRIS manual"),
     transferSales: sumPayment("Transfer"),

@@ -1,0 +1,17 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="128" cy="128" r="116" fill="#fbf7ec" stroke="#27421f" stroke-width="8"/>
+  <circle cx="128" cy="128" r="106" fill="#fffdf5" stroke="#d8d0b8" stroke-width="2"/>
+  <path d="M83 81c14 27 79 27 93 0v30c0 22-21 39-47 39s-46-17-46-39V81Z" fill="#29411f"/>
+  <path d="M83 81c14 27 79 27 93 0" stroke="#fbf7ec" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="117" cy="108" r="4" fill="#fbf7ec"/>
+  <circle cx="141" cy="108" r="4" fill="#fbf7ec"/>
+  <path d="M118 123c7 7 16 7 23 0" stroke="#fbf7ec" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="118" cy="72" r="15" fill="#d85f32"/>
+  <circle cx="144" cy="72" r="15" fill="#e1a93b"/>
+  <circle cx="132" cy="60" r="13" fill="#2f6d34"/>
+  <path d="M91 60c-17-19-23-39-15-49 23 6 32 25 15 49Z" fill="#8bab55"/>
+  <path d="M165 61c15-16 31-18 44-8-9 19-25 24-44 8Z" fill="#50783b"/>
+  <text x="128" y="173" text-anchor="middle" font-family="Georgia, serif" font-size="58" font-style="italic" fill="#22311f">Joyful</text>
+  <text x="128" y="203" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#68705c">Healthy Bistro &amp; Cafe</text>
+  <text x="128" y="225" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#9b6b48">EAT HEALTHY &amp; BE HAPPY</text>
+</svg>

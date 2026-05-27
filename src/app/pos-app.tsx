@@ -7,6 +7,7 @@ import {
   CalendarDays,
   CreditCard,
   FileSpreadsheet,
+  History,
   Pencil,
   Minus,
   Plus,
@@ -18,6 +19,7 @@ import {
   ShoppingCart,
   Utensils,
   Users,
+  AlertTriangle,
   X,
 } from "lucide-react";
 import { FormEvent, useRef, useState } from "react";
@@ -127,6 +129,17 @@ type ShiftSummary = {
   refundTotal: number;
 };
 
+type ShiftHistoryItem = CashierShift & {
+  summary?: ShiftSummary;
+};
+
+type ShiftCloseWarning = {
+  closingCash: number;
+  expectedCash: number;
+  cashDifference: number;
+  isEmptyInput: boolean;
+};
+
 type CartItem = {
   lineId: string;
   productId: string | null;
@@ -194,6 +207,7 @@ export function PosApp({
   initialCategories,
   initialOrders,
   initialCurrentShift,
+  initialShiftHistory,
   initialUsers,
   initialAuditLogs,
   user,
@@ -202,6 +216,7 @@ export function PosApp({
   initialCategories: Category[];
   initialOrders: Order[];
   initialCurrentShift: CashierShift | null;
+  initialShiftHistory: ShiftHistoryItem[];
   initialUsers: UserAccount[];
   initialAuditLogs: AuditLog[];
   user: CurrentUser;
@@ -227,10 +242,14 @@ export function PosApp({
   const [currentShift, setCurrentShift] = useState<CashierShift | null>(
     initialCurrentShift,
   );
+  const [shiftHistory, setShiftHistory] =
+    useState<ShiftHistoryItem[]>(initialShiftHistory);
   const [openingCash, setOpeningCash] = useState("");
   const [closingCash, setClosingCash] = useState("");
   const [shiftNote, setShiftNote] = useState("");
   const [isSavingShift, setIsSavingShift] = useState(false);
+  const [shiftCloseWarning, setShiftCloseWarning] =
+    useState<ShiftCloseWarning | null>(null);
   const [activeTab, setActiveTab] = useState<ActiveTab>("kasir");
   const [reportRange, setReportRange] = useState<ReportRange>("today");
   const [customStartDate, setCustomStartDate] = useState(getDateInputValue(new Date()));
@@ -367,6 +386,11 @@ export function PosApp({
     ? orders.filter((order) => order.shiftId === currentShift.id)
     : [];
   const activeShiftSummary = getShiftSummary(activeShiftOrders);
+  const activeExpectedCash = currentShift
+    ? currentShift.openingCash +
+      activeShiftSummary.cashSales -
+      activeShiftSummary.cashRefund
+    : 0;
 
   function addToCart(product: Product) {
     if (!product.isAvailable) return;
@@ -1045,6 +1069,31 @@ export function PosApp({
 
   async function closeShift(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    requestCloseShift();
+  }
+
+  function requestCloseShift() {
+    if (isSavingShift || !currentShift) return;
+
+    const closingCashValue = Number(closingCash || 0);
+    const cashDifference = closingCashValue - activeExpectedCash;
+    const needsWarning =
+      closingCash.trim() === "" || closingCashValue === 0 || cashDifference !== 0;
+
+    if (needsWarning) {
+      setShiftCloseWarning({
+        closingCash: closingCashValue,
+        expectedCash: activeExpectedCash,
+        cashDifference,
+        isEmptyInput: closingCash.trim() === "",
+      });
+      return;
+    }
+
+    submitCloseShift(closingCashValue);
+  }
+
+  async function submitCloseShift(closingCashValue: number) {
     if (isSavingShift || !currentShift) return;
     setIsSavingShift(true);
 
@@ -1054,7 +1103,7 @@ export function PosApp({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           shiftId: currentShift.id,
-          closingCash: Number(closingCash || 0),
+          closingCash: closingCashValue,
           note: shiftNote,
         }),
       });
@@ -1064,10 +1113,28 @@ export function PosApp({
         return;
       }
 
+      const result = (await response.json()) as {
+        currentShift: null;
+        closedShift: CashierShift;
+        summary: ShiftSummary;
+      };
+
       setCurrentShift(null);
+      setShiftHistory((current) => [
+        { ...result.closedShift, summary: result.summary },
+        ...current.filter((shift) => shift.id !== result.closedShift.id),
+      ]);
       setClosingCash("");
       setShiftNote("");
-      showToast("Shift kasir berhasil ditutup dan tersimpan.", "success");
+      setShiftCloseWarning(null);
+      showToast(
+        result.closedShift.cashDifference
+          ? `Shift ditutup. Selisih uang laci ${formatRupiah(
+              result.closedShift.cashDifference,
+            )}.`
+          : "Shift kasir berhasil ditutup dan uang laci sesuai.",
+        result.closedShift.cashDifference ? "info" : "success",
+      );
       refreshAuditLogs();
     } finally {
       setIsSavingShift(false);
@@ -1267,11 +1334,7 @@ export function PosApp({
                     />
                     <Summary
                       label="Estimasi laci"
-                      value={formatRupiah(
-                        currentShift.openingCash +
-                          activeShiftSummary.cashSales -
-                          activeShiftSummary.cashRefund,
-                      )}
+                      value={formatRupiah(activeExpectedCash)}
                     />
                   </div>
                   <form
@@ -1994,6 +2057,7 @@ export function PosApp({
             </div>
 
             <div className="grid gap-4">
+              <ShiftHistoryPanel shifts={shiftHistory} />
               <div className="grid min-h-[440px] gap-4 lg:grid-cols-[minmax(0,1fr)_380px] xl:grid-cols-[minmax(0,1fr)_440px]">
                 <div className="flex min-h-[440px] min-w-0 flex-col overflow-hidden rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4">
                 <div className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-3">
@@ -2570,6 +2634,15 @@ export function PosApp({
         onCancel={() => setIsOrderConfirmOpen(false)}
         onConfirm={submitOrder}
       />
+      <ShiftCloseWarningModal
+        warning={shiftCloseWarning}
+        isSaving={isSavingShift}
+        onCancel={() => setShiftCloseWarning(null)}
+        onConfirm={() => {
+          if (!shiftCloseWarning) return;
+          submitCloseShift(shiftCloseWarning.closingCash);
+        }}
+      />
       <Toast toast={toast} onClose={() => setToast(null)} />
       <PrintableReceipt
         order={printTarget === "order" ? printOrder : null}
@@ -2590,6 +2663,176 @@ function Summary({ label, value }: { label: string; value: string }) {
         {label}
       </p>
       <p className="mt-1 text-lg font-black leading-tight">{value}</p>
+    </div>
+  );
+}
+
+function ShiftHistoryPanel({ shifts }: { shifts: ShiftHistoryItem[] }) {
+  return (
+    <section className="flex min-h-0 flex-col overflow-hidden rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4">
+      <div className="mb-4 flex shrink-0 items-center justify-between gap-3">
+        <h2 className="flex items-center gap-2 text-xl font-black">
+          <History size={22} /> Riwayat Shift
+        </h2>
+        <p className="text-sm font-bold text-[#68705c]">
+          Menampilkan shift yang sudah ditutup.
+        </p>
+      </div>
+
+      {shifts.length === 0 ? (
+        <div className="rounded-[8px] border border-dashed border-[#c8b98f] p-6 text-center font-bold text-[#68705c]">
+          Belum ada shift yang selesai.
+        </div>
+      ) : (
+        <div className="max-h-[300px] space-y-3 overflow-y-auto pr-1">
+          {shifts.map((shift) => {
+            const summary = shift.summary ?? getShiftSummary(shift.orders ?? []);
+            const expectedCash =
+              shift.expectedCash ??
+              shift.openingCash + summary.cashSales - summary.cashRefund;
+            const cashDifference =
+              shift.cashDifference ??
+              (shift.closingCash === null ? 0 : shift.closingCash - expectedCash);
+
+            return (
+              <div
+                key={shift.id}
+                className="rounded-[8px] border border-[#e1d5b8] bg-white p-3"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="font-black">{shift.openedByName}</p>
+                    <p className="text-sm font-bold text-[#68705c]">
+                      {formatOrderDate(shift.openedAt)}
+                      {shift.closedAt ? ` - ${formatOrderDate(shift.closedAt)}` : ""}
+                    </p>
+                  </div>
+                  <div
+                    className={`rounded-[8px] px-3 py-2 text-sm font-black ${
+                      cashDifference === 0
+                        ? "bg-[#eef3df] text-[#28451f]"
+                        : "bg-[#f5ded5] text-[#a13f28]"
+                    }`}
+                  >
+                    Selisih {formatRupiah(cashDifference)}
+                  </div>
+                </div>
+
+                <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                  <Summary
+                    label="Modal awal"
+                    value={formatRupiah(shift.openingCash)}
+                  />
+                  <Summary label="Penjualan" value={formatRupiah(summary.sales)} />
+                  <Summary label="Tunai" value={formatRupiah(summary.cashSales)} />
+                  <Summary label="QRIS" value={formatRupiah(summary.qrisSales)} />
+                  <Summary
+                    label="Estimasi laci"
+                    value={formatRupiah(expectedCash)}
+                  />
+                  <Summary
+                    label="Uang tutup"
+                    value={
+                      shift.closingCash === null
+                        ? "-"
+                        : formatRupiah(shift.closingCash)
+                    }
+                  />
+                  <Summary label="Transaksi" value={`${summary.orderCount}`} />
+                  <Summary label="Void/refund" value={`${summary.voidCount}/${summary.refundCount}`} />
+                </div>
+
+                {shift.note && (
+                  <p className="mt-3 rounded-[8px] bg-[#f4efe2] px-3 py-2 text-sm font-bold text-[#68705c]">
+                    Catatan: {shift.note}
+                  </p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ShiftCloseWarningModal({
+  warning,
+  isSaving,
+  onCancel,
+  onConfirm,
+}: {
+  warning: ShiftCloseWarning | null;
+  isSaving: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  if (!warning) return null;
+
+  const differenceLabel =
+    warning.cashDifference > 0
+      ? `lebih ${formatRupiah(warning.cashDifference)}`
+      : warning.cashDifference < 0
+      ? `kurang ${formatRupiah(Math.abs(warning.cashDifference))}`
+      : "sesuai";
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-3">
+      <button
+        type="button"
+        onClick={onCancel}
+        className="absolute right-4 top-4 z-[75] grid h-11 w-11 place-items-center rounded-full bg-[#fffdf5] text-[#28451f] shadow-xl"
+        aria-label="Tutup dialog"
+      >
+        <X size={24} />
+      </button>
+      <div className="w-full max-w-lg rounded-[8px] bg-[#fffdf5] p-4 shadow-2xl">
+        <div className="flex items-start gap-3">
+          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#f5ded5] text-[#a13f28]">
+            <AlertTriangle size={24} />
+          </div>
+          <div>
+            <h2 className="text-xl font-black">Cek Uang Laci Dulu</h2>
+            <p className="mt-1 text-sm font-bold text-[#68705c]">
+              {warning.isEmptyInput
+                ? "Uang laci saat tutup belum diisi. Kalau dilanjutkan, sistem akan menyimpan Rp 0."
+                : warning.closingCash === 0
+                ? "Uang laci saat tutup berisi Rp 0. Pastikan ini memang benar."
+                : "Uang laci saat tutup tidak sama dengan estimasi sistem."}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-2 sm:grid-cols-3">
+          <Summary label="Estimasi laci" value={formatRupiah(warning.expectedCash)} />
+          <Summary label="Diinput" value={formatRupiah(warning.closingCash)} />
+          <Summary label="Selisih" value={differenceLabel} />
+        </div>
+
+        <div className="mt-4 rounded-[8px] border border-[#e1d5b8] bg-white p-3 text-sm font-bold text-[#68705c]">
+          Jika uang fisik memang berbeda, lanjutkan saja supaya selisihnya
+          tercatat di riwayat shift dan audit.
+        </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={isSaving}
+            className="h-11 rounded-[8px] bg-[#eef3df] font-black text-[#28451f] disabled:opacity-50"
+          >
+            Periksa Lagi
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={isSaving}
+            className="h-11 rounded-[8px] bg-[#d85f32] font-black text-white disabled:opacity-50"
+          >
+            {isSaving ? "Menutup..." : "Tetap Tutup Shift"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
