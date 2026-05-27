@@ -1587,21 +1587,26 @@ export function PosApp({
             <div className="min-w-0 overflow-y-auto pr-1 lg:h-full lg:min-h-0">
               <form
                 onSubmit={addCategory}
-                className="rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4"
+                className="rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-3"
               >
-                <h2 className="mb-4 text-xl font-black">Tambah Kategori</h2>
-                <FormInput
-                  label="Nama kategori"
-                  value={categoryName}
-                  onChange={setCategoryName}
-                />
+                <h2 className="mb-3 text-lg font-black">Tambah Kategori</h2>
+                <label className="mb-2 block">
+                  <span className="mb-1 block text-xs font-bold text-[#68705c]">
+                    Nama kategori
+                  </span>
+                  <input
+                    value={categoryName}
+                    onChange={(event) => setCategoryName(event.target.value)}
+                    className="h-10 w-full rounded-[8px] border border-[#d6c9aa] bg-white px-3 text-sm font-bold outline-none"
+                  />
+                </label>
                 <button
                   disabled={isSavingCategory}
-                  className="h-12 w-full rounded-[8px] bg-[#d85f32] font-black text-white disabled:opacity-50"
+                  className="h-10 w-full rounded-[8px] bg-[#d85f32] text-sm font-black text-white disabled:opacity-50"
                 >
                   {isSavingCategory ? "Menyimpan..." : "Simpan Kategori"}
                 </button>
-                <div className="mt-4 space-y-2 border-t border-[#d6c9aa] pt-4">
+                <div className="mt-3 space-y-2 border-t border-[#d6c9aa] pt-3">
                   {categories.map((category) => {
                     const usedCount = products.filter(
                       (product) => product.categoryId === category.id,
@@ -1610,10 +1615,10 @@ export function PosApp({
                     return (
                       <div
                         key={category.id}
-                        className="flex items-center justify-between gap-3 rounded-[8px] border border-[#e1d5b8] bg-white px-3 py-2"
+                        className="flex items-center justify-between gap-2 rounded-[8px] border border-[#e1d5b8] bg-white px-2.5 py-2"
                       >
                         <div className="min-w-0">
-                          <p className="truncate font-black">{category.name}</p>
+                          <p className="truncate text-sm font-black">{category.name}</p>
                           <p className="text-xs font-bold text-[#68705c]">
                             {usedCount} menu
                           </p>
@@ -1622,7 +1627,7 @@ export function PosApp({
                           type="button"
                           onClick={() => deleteCategory(category)}
                           disabled={usedCount > 0}
-                          className="h-10 rounded-[8px] bg-[#f5ded5] px-3 text-sm font-black text-[#a13f28] disabled:opacity-45"
+                          className="h-9 rounded-[8px] bg-[#f5ded5] px-2.5 text-xs font-black text-[#a13f28] disabled:opacity-45"
                           title={
                             usedCount > 0
                               ? "Kategori masih dipakai menu"
@@ -1657,13 +1662,13 @@ export function PosApp({
                 </div>
               )}
               <div className="min-h-0 overflow-y-auto pr-1">
-                <div className="grid gap-3 xl:grid-cols-2">
+                <div className="grid grid-cols-2 gap-3">
                 {visibleMenuProducts.map((product) => (
                   <div
                     key={product.id}
                     className="min-w-0 overflow-hidden rounded-[8px] border border-[#e1d5b8] bg-white"
                   >
-                    <div className="relative aspect-[4/3] bg-[#eef3df]">
+                    <div className="relative aspect-[4/3] max-h-40 bg-[#eef3df]">
                         {product.imageUrl ? (
                           <Image
                             src={getDisplayImageUrl(product.imageUrl)}
@@ -1674,22 +1679,22 @@ export function PosApp({
                           />
                         ) : null}
                     </div>
-                    <div className="p-3">
+                    <div className="p-2.5">
                       <div className="min-w-0">
-                        <p className="break-words font-black leading-tight">
+                        <p className="break-words text-sm font-black leading-tight">
                           {product.name}
                         </p>
-                        <p className="text-sm text-[#68705c]">
+                        <p className="text-xs font-bold text-[#68705c]">
                           {product.category.name}
                         </p>
-                        <p className="mt-1 break-words font-bold text-[#d85f32]">
+                        <p className="mt-1 break-words text-sm font-black text-[#d85f32]">
                           {formatRupiah(product.price)}
                         </p>
                       </div>
-                    <div className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(82px,1fr))] gap-2">
+                    <div className="mt-2 grid grid-cols-3 gap-1.5">
                       <button
                         onClick={() => toggleProduct(product)}
-                        className={`min-h-10 rounded-[8px] px-2 py-2 text-sm font-bold leading-tight ${
+                        className={`min-h-8 rounded-[8px] px-1.5 py-1 text-xs font-bold leading-tight ${
                           product.isAvailable
                             ? "bg-[#eef3df] text-[#28451f]"
                             : "bg-[#f5ded5] text-[#a13f28]"
@@ -1699,13 +1704,13 @@ export function PosApp({
                       </button>
                       <button
                         onClick={() => startEditProduct(product)}
-                        className="flex min-h-10 items-center justify-center gap-1 rounded-[8px] bg-[#f4efe2] px-2 py-2 text-sm font-bold leading-tight text-[#28451f]"
+                        className="flex min-h-8 items-center justify-center gap-1 rounded-[8px] bg-[#f4efe2] px-1.5 py-1 text-xs font-bold leading-tight text-[#28451f]"
                       >
-                        <Pencil size={15} /> Edit
+                        <Pencil size={13} /> Edit
                       </button>
                       <button
                         onClick={() => deleteProduct(product)}
-                        className="min-h-10 rounded-[8px] bg-[#f5ded5] px-2 py-2 text-sm font-bold leading-tight text-[#a13f28]"
+                        className="min-h-8 rounded-[8px] bg-[#f5ded5] px-1.5 py-1 text-xs font-bold leading-tight text-[#a13f28]"
                       >
                         Hapus
                       </button>
