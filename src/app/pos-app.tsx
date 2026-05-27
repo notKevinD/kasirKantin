@@ -12,6 +12,7 @@ import {
   Plus,
   Printer,
   ReceiptText,
+  RotateCcw,
   Search,
   ShieldCheck,
   ShoppingCart,
@@ -58,9 +59,21 @@ type OrderItem = {
   subtotal: number;
 };
 
+type Refund = {
+  id: string;
+  orderId: string;
+  amount: number;
+  reason: string;
+  userId: string | null;
+  username: string | null;
+  createdAt: string;
+};
+
 type Order = {
   id: string;
   orderNumber: string;
+  queueNumber: number | null;
+  orderDate: string | null;
   orderType: string;
   status: string;
   paymentMethod: string;
@@ -68,13 +81,52 @@ type Order = {
   tableNumber: string | null;
   cashierName: string | null;
   discount: number;
+  discountType: string;
+  discountValue: number;
+  discountReason: string | null;
   voidReason: string | null;
+  refundAmount: number;
+  refundReason: string | null;
   total: number;
   cashReceived: number | null;
   changeAmount: number | null;
   note: string | null;
+  shiftId: string | null;
   createdAt: string;
+  updatedAt?: string;
   items: OrderItem[];
+  refunds?: Refund[];
+};
+
+type CashierShift = {
+  id: string;
+  openedById: string | null;
+  openedByName: string;
+  openingCash: number;
+  closingCash: number | null;
+  expectedCash: number | null;
+  cashDifference: number | null;
+  note: string | null;
+  status: string;
+  openedAt: string;
+  closedAt: string | null;
+  orders?: Order[];
+};
+
+type ShiftSummary = {
+  orderCount: number;
+  voidCount: number;
+  refundCount: number;
+  sales: number;
+  cashSales: number;
+  qrisSales: number;
+  transferSales: number;
+  debitSales: number;
+  ewalletSales: number;
+  splitSales: number;
+  discountTotal: number;
+  cashRefund: number;
+  refundTotal: number;
 };
 
 type CartItem = {
@@ -124,10 +176,20 @@ const emptyProductForm = {
   description: "",
 };
 
+const paymentMethods = [
+  "Tunai",
+  "QRIS manual",
+  "Transfer",
+  "Debit",
+  "E-Wallet",
+  "Split payment",
+];
+
 export function PosApp({
   initialProducts,
   initialCategories,
   initialOrders,
+  initialCurrentShift,
   initialUsers,
   initialAuditLogs,
   user,
@@ -135,6 +197,7 @@ export function PosApp({
   initialProducts: Product[];
   initialCategories: Category[];
   initialOrders: Order[];
+  initialCurrentShift: CashierShift | null;
   initialUsers: UserAccount[];
   initialAuditLogs: AuditLog[];
   user: CurrentUser;
@@ -154,7 +217,16 @@ export function PosApp({
   const [customerName, setCustomerName] = useState("");
   const [tableNumber, setTableNumber] = useState("");
   const [discount, setDiscount] = useState("");
+  const [discountType, setDiscountType] = useState<"amount" | "percent">("amount");
+  const [discountReason, setDiscountReason] = useState("");
   const [transactionQuery, setTransactionQuery] = useState("");
+  const [currentShift, setCurrentShift] = useState<CashierShift | null>(
+    initialCurrentShift,
+  );
+  const [openingCash, setOpeningCash] = useState("");
+  const [closingCash, setClosingCash] = useState("");
+  const [shiftNote, setShiftNote] = useState("");
+  const [isSavingShift, setIsSavingShift] = useState(false);
   const [activeTab, setActiveTab] = useState<ActiveTab>("kasir");
   const [reportRange, setReportRange] = useState<ReportRange>("today");
   const [customStartDate, setCustomStartDate] = useState(getDateInputValue(new Date()));
@@ -165,6 +237,7 @@ export function PosApp({
   );
   const [printOrder, setPrintOrder] = useState<Order | null>(lastOrder);
   const [printMode, setPrintMode] = useState<"receipt" | "kitchen">("receipt");
+  const [printTarget, setPrintTarget] = useState<"order" | "shift">("order");
   const [productForm, setProductForm] = useState({
     ...emptyProductForm,
     categoryId: initialCategories[0]?.id ?? "",
@@ -228,7 +301,11 @@ export function PosApp({
     (sum, item) => sum + item.unitPrice * item.quantity,
     0,
   );
-  const discountAmount = Math.max(Number(discount || 0), 0);
+  const rawDiscountValue = Math.max(Number(discount || 0), 0);
+  const discountAmount =
+    discountType === "percent"
+      ? Math.min(Math.round((cartSubtotal * rawDiscountValue) / 100), cartSubtotal)
+      : Math.min(rawDiscountValue, cartSubtotal);
   const cartTotal = Math.max(cartSubtotal - discountAmount, 0);
   const changeAmount =
     paymentMethod === "Tunai"
@@ -236,28 +313,51 @@ export function PosApp({
       : 0;
 
   const paidOrders = orders.filter((order) => order.status === "paid");
+  const completedOrders = orders.filter((order) =>
+    ["paid", "partially_refunded", "refunded"].includes(order.status),
+  );
   const inProgressOrders = orders.filter((order) => order.status === "in_progress");
-  const todayOrders = paidOrders.filter((order) =>
+  const todayOrders = completedOrders.filter((order) =>
     isOrderInRange(order, "today", customStartDate, customEndDate),
   );
-  const todaySales = todayOrders.reduce((sum, order) => sum + order.total, 0);
+  const todaySales = todayOrders.reduce((sum, order) => sum + netOrderTotal(order), 0);
   const qrisSales = todayOrders
     .filter((order) => order.paymentMethod === "QRIS manual")
-    .reduce((sum, order) => sum + order.total, 0);
-  const reportOrders = paidOrders.filter((order) =>
+    .reduce((sum, order) => sum + netOrderTotal(order), 0);
+  const reportOrders = completedOrders.filter((order) =>
     isOrderInRange(order, reportRange, customStartDate, customEndDate),
   );
-  const reportSales = reportOrders.reduce((sum, order) => sum + order.total, 0);
-  const reportCashSales = reportOrders
-    .filter((order) => order.paymentMethod === "Tunai")
-    .reduce((sum, order) => sum + order.total, 0);
-  const reportQrisSales = reportOrders
-    .filter((order) => order.paymentMethod === "QRIS manual")
-    .reduce((sum, order) => sum + order.total, 0);
+  const reportSales = reportOrders.reduce((sum, order) => sum + netOrderTotal(order), 0);
+  const reportDiscountTotal = reportOrders.reduce(
+    (sum, order) => sum + order.discount,
+    0,
+  );
+  const reportRefundTotal = reportOrders.reduce(
+    (sum, order) => sum + order.refundAmount,
+    0,
+  );
+  const cancelledReportOrders = orders.filter(
+    (order) =>
+      order.status === "cancelled" &&
+      isOrderInRange(order, reportRange, customStartDate, customEndDate),
+  );
+  const reportPaymentSales = paymentMethods.reduce<Record<string, number>>(
+    (summary, method) => {
+      summary[method] = reportOrders
+        .filter((order) => order.paymentMethod === method)
+        .reduce((sum, order) => sum + netOrderTotal(order), 0);
+      return summary;
+    },
+    {},
+  );
   const visibleReportOrders = reportOrders.filter((order) =>
     matchesTransactionQuery(order, transactionQuery),
   );
   const soldProducts = getSoldProducts(reportOrders);
+  const activeShiftOrders = currentShift
+    ? orders.filter((order) => order.shiftId === currentShift.id)
+    : [];
+  const activeShiftSummary = getShiftSummary(activeShiftOrders);
 
   function addToCart(product: Product) {
     if (!product.isAvailable) return;
@@ -334,6 +434,15 @@ export function PosApp({
   function requestOrderConfirmation() {
     if (isSavingOrder) return;
     if (cart.length === 0) return;
+    if (!currentShift) {
+      alert("Buka shift kasir dulu sebelum mencatat transaksi.");
+      return;
+    }
+
+    if (discountAmount > 0 && !discountReason.trim()) {
+      alert("Alasan diskon wajib diisi.");
+      return;
+    }
 
     if (
       checkoutMode === "now" &&
@@ -371,7 +480,9 @@ export function PosApp({
             orderType,
             customerName,
             tableNumber,
-            discount: discountAmount,
+            discountValue: rawDiscountValue,
+            discountType,
+            discountReason,
             status: checkoutMode === "later" ? "in_progress" : "paid",
             paymentMethod:
               checkoutMode === "later" ? "Belum bayar" : paymentMethod,
@@ -404,8 +515,10 @@ export function PosApp({
       if (order.status === "paid") {
         setLastOrder(order);
         setPrintMode("receipt");
+        setPrintTarget("order");
       } else {
         setPrintMode("kitchen");
+        setPrintTarget("order");
       }
       setPrintOrder(order);
       setCart([]);
@@ -413,6 +526,8 @@ export function PosApp({
       setCustomerName("");
       setTableNumber("");
       setDiscount("");
+      setDiscountType("amount");
+      setDiscountReason("");
       setEditingOrderId(null);
       setCheckoutMode("now");
       setIsOrderConfirmOpen(false);
@@ -689,7 +804,15 @@ export function PosApp({
     setCashReceived(order.cashReceived === null ? "" : String(order.cashReceived));
     setCustomerName(order.customerName ?? "");
     setTableNumber(order.tableNumber ?? "");
-    setDiscount(order.discount ? String(order.discount) : "");
+    setDiscountType(order.discountType === "percent" ? "percent" : "amount");
+    setDiscount(
+      order.discountValue
+        ? String(order.discountValue)
+        : order.discount
+        ? String(order.discount)
+        : "",
+    );
+    setDiscountReason(order.discountReason ?? "");
     setCart(
       order.items.map((item) => ({
         lineId: item.productId ?? item.id ?? crypto.randomUUID(),
@@ -710,6 +833,8 @@ export function PosApp({
     setCustomerName("");
     setTableNumber("");
     setDiscount("");
+    setDiscountType("amount");
+    setDiscountReason("");
     setCheckoutMode("now");
   }
 
@@ -747,6 +872,102 @@ export function PosApp({
 
     if (editingOrderId === order.id) {
       cancelEditOrder();
+    }
+  }
+
+  async function refundOrder(order: Order) {
+    const amountText = window.prompt(
+      `Nominal refund untuk ${order.orderNumber}?`,
+      String(Math.max(netOrderTotal(order), 0)),
+    );
+    if (!amountText) return;
+
+    const amount = Number(amountText);
+    const reason = window.prompt("Alasan refund/retur?")?.trim();
+    if (!amount || amount <= 0 || !reason) return;
+
+    const response = await fetch(`/api/orders/${order.id}/refund`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ amount, reason }),
+    });
+
+    if (!response.ok) {
+      alert(await getErrorMessage(response, "Refund belum bisa disimpan."));
+      return;
+    }
+
+    const updatedOrder = (await response.json()) as Order;
+    setOrders((current) =>
+      current.map((item) => (item.id === updatedOrder.id ? updatedOrder : item)),
+    );
+    setLastOrder(updatedOrder);
+    showToast("Refund transaksi sudah dicatat");
+    refreshAuditLogs();
+  }
+
+  async function openShift(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (isSavingShift) return;
+    setIsSavingShift(true);
+
+    try {
+      const response = await fetch("/api/shifts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          openingCash: Number(openingCash || 0),
+          note: shiftNote,
+        }),
+      });
+
+      if (!response.ok) {
+        alert(await getErrorMessage(response, "Shift belum bisa dibuka."));
+        return;
+      }
+
+      const result = (await response.json()) as {
+        currentShift: CashierShift;
+        summary: ShiftSummary;
+      };
+      setCurrentShift(result.currentShift);
+      setOpeningCash("");
+      setShiftNote("");
+      showToast("Shift kasir dibuka");
+      refreshAuditLogs();
+    } finally {
+      setIsSavingShift(false);
+    }
+  }
+
+  async function closeShift(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (isSavingShift || !currentShift) return;
+    setIsSavingShift(true);
+
+    try {
+      const response = await fetch("/api/shifts", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          shiftId: currentShift.id,
+          closingCash: Number(closingCash || 0),
+          note: shiftNote,
+        }),
+      });
+
+      if (!response.ok) {
+        alert(await getErrorMessage(response, "Shift belum bisa ditutup."));
+        return;
+      }
+
+      setCurrentShift(null);
+      setClosingCash("");
+      setShiftNote("");
+      showToast("Shift kasir ditutup");
+      refreshAuditLogs();
+    } finally {
+      setIsSavingShift(false);
     }
   }
 
@@ -839,13 +1060,21 @@ export function PosApp({
 
   function printPaidReceipt(order: Order) {
     setPrintMode("receipt");
+    setPrintTarget("order");
     setPrintOrder(order);
     window.setTimeout(() => window.print(), 100);
   }
 
   function printKitchenOrder(order: Order) {
     setPrintMode("kitchen");
+    setPrintTarget("order");
     setPrintOrder(order);
+    window.setTimeout(() => window.print(), 100);
+  }
+
+  function printShiftReport() {
+    if (!currentShift) return;
+    setPrintTarget("shift");
     window.setTimeout(() => window.print(), 100);
   }
 
@@ -919,7 +1148,84 @@ export function PosApp({
         </nav>
 
         {activeTab === "kasir" && (
-          <div className="grid flex-1 gap-3 lg:min-h-0 lg:grid-cols-[210px_minmax(0,1fr)_330px] lg:overflow-hidden xl:gap-4 xl:grid-cols-[280px_minmax(0,1fr)_420px]">
+          <section className="flex flex-1 flex-col gap-3 lg:min-h-0 lg:overflow-hidden">
+            <div className="shrink-0 rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-3">
+              {currentShift ? (
+                <div className="grid gap-3 lg:grid-cols-[1fr_420px]">
+                  <div className="grid gap-2 sm:grid-cols-4">
+                    <Summary label="Shift" value={currentShift.openedByName} />
+                    <Summary
+                      label="Modal awal"
+                      value={formatRupiah(currentShift.openingCash)}
+                    />
+                    <Summary
+                      label="Tunai shift"
+                      value={formatRupiah(activeShiftSummary.cashSales)}
+                    />
+                    <Summary
+                      label="Estimasi laci"
+                      value={formatRupiah(
+                        currentShift.openingCash +
+                          activeShiftSummary.cashSales -
+                          activeShiftSummary.cashRefund,
+                      )}
+                    />
+                  </div>
+                  <form onSubmit={closeShift} className="grid gap-2 sm:grid-cols-[1fr_1fr_auto_auto]">
+                    <input
+                      value={closingCash}
+                      onChange={(event) => setClosingCash(event.target.value)}
+                      inputMode="numeric"
+                      placeholder="Uang laci saat tutup"
+                      className="h-11 rounded-[8px] border border-[#d6c9aa] bg-white px-3 font-bold outline-none"
+                    />
+                    <input
+                      value={shiftNote}
+                      onChange={(event) => setShiftNote(event.target.value)}
+                      placeholder="Catatan shift"
+                      className="h-11 rounded-[8px] border border-[#d6c9aa] bg-white px-3 font-bold outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={printShiftReport}
+                      className="h-11 rounded-[8px] bg-[#eef3df] px-4 font-black text-[#28451f]"
+                    >
+                      Cetak Shift
+                    </button>
+                    <button
+                      disabled={isSavingShift}
+                      className="h-11 rounded-[8px] bg-[#d85f32] px-4 font-black text-white disabled:opacity-50"
+                    >
+                      Tutup Shift
+                    </button>
+                  </form>
+                </div>
+              ) : (
+                <form onSubmit={openShift} className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+                  <input
+                    value={openingCash}
+                    onChange={(event) => setOpeningCash(event.target.value)}
+                    inputMode="numeric"
+                    placeholder="Modal awal kasir"
+                    className="h-11 rounded-[8px] border border-[#d6c9aa] bg-white px-3 font-bold outline-none"
+                  />
+                  <input
+                    value={shiftNote}
+                    onChange={(event) => setShiftNote(event.target.value)}
+                    placeholder="Catatan buka shift"
+                    className="h-11 rounded-[8px] border border-[#d6c9aa] bg-white px-3 font-bold outline-none"
+                  />
+                  <button
+                    disabled={isSavingShift}
+                    className="h-11 rounded-[8px] bg-[#28451f] px-4 font-black text-white disabled:opacity-50"
+                  >
+                    Buka Shift
+                  </button>
+                </form>
+              )}
+            </div>
+
+            <div className="grid flex-1 gap-3 lg:min-h-0 lg:grid-cols-[210px_minmax(0,1fr)_330px] lg:overflow-hidden xl:gap-4 xl:grid-cols-[280px_minmax(0,1fr)_420px]">
             <section className="min-w-0 rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-3 lg:flex lg:min-h-0 lg:flex-col lg:overflow-hidden xl:p-4">
               <h2 className="mb-3 text-lg font-black">Transaksi Berjalan</h2>
               {inProgressOrders.length === 0 ? (
@@ -936,6 +1242,9 @@ export function PosApp({
                       <div className="mb-2 flex items-start justify-between gap-3">
                           <div className="min-w-0">
                           <p className="truncate font-black">
+                            {order.queueNumber
+                              ? `#${String(order.queueNumber).padStart(3, "0")} `
+                              : ""}
                             {order.tableNumber
                               ? `Meja ${order.tableNumber}`
                               : order.customerName || order.orderNumber}
@@ -1152,13 +1461,41 @@ export function PosApp({
                     <span>Subtotal</span>
                     <span>{formatRupiah(cartSubtotal)}</span>
                   </div>
-                  <input
-                    value={discount}
-                    onChange={(event) => setDiscount(event.target.value)}
-                    inputMode="numeric"
-                    placeholder="Diskon"
-                    className="h-11 w-full rounded-[8px] border border-[#d6c9aa] px-3 font-bold outline-none"
-                  />
+                  <div className="grid grid-cols-[110px_1fr] gap-2">
+                    <select
+                      value={discountType}
+                      onChange={(event) =>
+                        setDiscountType(
+                          event.target.value === "percent" ? "percent" : "amount",
+                        )
+                      }
+                      className="h-11 rounded-[8px] border border-[#d6c9aa] bg-white px-2 font-bold outline-none"
+                    >
+                      <option value="amount">Rp</option>
+                      <option value="percent">%</option>
+                    </select>
+                    <input
+                      value={discount}
+                      onChange={(event) => setDiscount(event.target.value)}
+                      inputMode="numeric"
+                      placeholder="Diskon"
+                      className="h-11 w-full rounded-[8px] border border-[#d6c9aa] px-3 font-bold outline-none"
+                    />
+                  </div>
+                  {discountAmount > 0 && (
+                    <input
+                      value={discountReason}
+                      onChange={(event) => setDiscountReason(event.target.value)}
+                      placeholder="Alasan diskon"
+                      className="h-11 w-full rounded-[8px] border border-[#d6c9aa] px-3 font-bold outline-none"
+                    />
+                  )}
+                  {discountAmount > 0 && (
+                    <div className="flex items-center justify-between text-sm font-bold text-[#68705c]">
+                      <span>Nilai diskon</span>
+                      <span>-{formatRupiah(discountAmount)}</span>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between text-lg font-black">
                     <span>Total</span>
                     <span>{formatRupiah(cartTotal)}</span>
@@ -1188,26 +1525,24 @@ export function PosApp({
                 </div>
                 {checkoutMode === "now" && (
                   <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => setPaymentMethod("Tunai")}
-                    className={`flex h-11 items-center justify-center gap-2 rounded-[8px] font-bold ${
-                      paymentMethod === "Tunai"
-                        ? "bg-[#d85f32] text-white"
-                        : "bg-[#eef3df]"
-                    }`}
-                  >
-                    <Banknote size={18} /> Tunai
-                  </button>
-                  <button
-                    onClick={() => setPaymentMethod("QRIS manual")}
-                    className={`flex h-11 items-center justify-center gap-2 rounded-[8px] font-bold ${
-                      paymentMethod === "QRIS manual"
-                        ? "bg-[#d85f32] text-white"
-                        : "bg-[#eef3df]"
-                    }`}
-                  >
-                    <CreditCard size={18} /> QRIS
-                  </button>
+                    {paymentMethods.map((method) => (
+                      <button
+                        key={method}
+                        onClick={() => setPaymentMethod(method)}
+                        className={`flex h-11 items-center justify-center gap-2 rounded-[8px] text-sm font-bold ${
+                          paymentMethod === method
+                            ? "bg-[#d85f32] text-white"
+                            : "bg-[#eef3df]"
+                        }`}
+                      >
+                        {method === "Tunai" ? (
+                          <Banknote size={17} />
+                        ) : (
+                          <CreditCard size={17} />
+                        )}
+                        {method === "QRIS manual" ? "QRIS" : method}
+                      </button>
+                    ))}
                   </div>
                 )}
                 {checkoutMode === "now" && paymentMethod === "Tunai" && (
@@ -1242,7 +1577,8 @@ export function PosApp({
                 </button>
               </div>
             </aside>
-          </div>
+            </div>
+          </section>
         )}
 
         {activeTab === "menu" && canManageMenu && (
@@ -1527,8 +1863,15 @@ export function PosApp({
               <div className="grid gap-3 md:grid-cols-4">
                 <Summary label="Total penjualan" value={formatRupiah(reportSales)} />
                 <Summary label="Jumlah transaksi" value={`${reportOrders.length}`} />
-                <Summary label="Tunai" value={formatRupiah(reportCashSales)} />
-                <Summary label="QRIS manual" value={formatRupiah(reportQrisSales)} />
+                <Summary label="Tunai" value={formatRupiah(reportPaymentSales["Tunai"] ?? 0)} />
+                <Summary label="QRIS manual" value={formatRupiah(reportPaymentSales["QRIS manual"] ?? 0)} />
+                <Summary label="Transfer" value={formatRupiah(reportPaymentSales.Transfer ?? 0)} />
+                <Summary label="Debit" value={formatRupiah(reportPaymentSales.Debit ?? 0)} />
+                <Summary label="E-Wallet" value={formatRupiah(reportPaymentSales["E-Wallet"] ?? 0)} />
+                <Summary label="Split" value={formatRupiah(reportPaymentSales["Split payment"] ?? 0)} />
+                <Summary label="Diskon" value={formatRupiah(reportDiscountTotal)} />
+                <Summary label="Refund" value={formatRupiah(reportRefundTotal)} />
+                <Summary label="Void" value={`${cancelledReportOrders.length}`} />
               </div>
             </div>
 
@@ -1571,13 +1914,16 @@ export function PosApp({
                           {formatOrderDate(order.createdAt)} - {order.orderType}
                         </p>
                         <p className="mt-1 text-xs font-bold text-[#68705c]">
+                          {order.queueNumber
+                            ? `Antrean #${String(order.queueNumber).padStart(3, "0")} - `
+                            : ""}
                           {order.items.length} jenis item
                           {order.tableNumber ? ` - Meja ${order.tableNumber}` : ""}
                           {order.cashierName ? ` - ${order.cashierName}` : ""}
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="font-black">{formatRupiah(order.total)}</p>
+                        <p className="font-black">{formatRupiah(netOrderTotal(order))}</p>
                         <p className="text-sm text-[#68705c]">
                           {order.paymentMethod}
                         </p>
@@ -1590,6 +1936,7 @@ export function PosApp({
                 order={lastOrder}
                 onEdit={startEditOrder}
                 onDelete={deleteOrder}
+                onRefund={refundOrder}
                 onPrint={printPaidReceipt}
                 canEdit={canVoidOrder}
               />
@@ -1822,7 +2169,14 @@ export function PosApp({
         onConfirm={submitOrder}
       />
       <Toast toast={toast} />
-      <PrintableReceipt order={printOrder} mode={printMode} />
+      <PrintableReceipt
+        order={printTarget === "order" ? printOrder : null}
+        mode={printMode}
+      />
+      <PrintableShiftReport
+        shift={printTarget === "shift" ? currentShift : null}
+        summary={activeShiftSummary}
+      />
     </main>
   );
 }
@@ -2003,12 +2357,14 @@ function OrderDetail({
   order,
   onEdit,
   onDelete,
+  onRefund,
   onPrint,
   canEdit,
 }: {
   order: Order | null;
   onEdit: (order: Order) => void;
   onDelete: (order: Order) => void;
+  onRefund: (order: Order) => void;
   onPrint: (order: Order) => void;
   canEdit: boolean;
 }) {
@@ -2045,6 +2401,13 @@ function OrderDetail({
               >
                 Void
               </button>
+              <button
+                onClick={() => onRefund(order)}
+                disabled={!["paid", "partially_refunded"].includes(order.status)}
+                className="flex h-10 items-center gap-2 rounded-[8px] bg-[#eef3df] px-3 text-sm font-black text-[#28451f] disabled:opacity-50"
+              >
+                <RotateCcw size={16} /> Refund
+              </button>
             </>
           )}
           <button
@@ -2064,7 +2427,12 @@ function OrderDetail({
         <DetailBox label="Meja" value={order.tableNumber || "-"} />
         <DetailBox label="Pelanggan" value={order.customerName || "-"} />
         <DetailBox label="Kasir" value={order.cashierName || "-"} />
+        <DetailBox
+          label="No antrean"
+          value={order.queueNumber ? String(order.queueNumber).padStart(3, "0") : "-"}
+        />
         <DetailBox label="Void" value={order.voidReason || "-"} />
+        <DetailBox label="Refund" value={order.refundReason || "-"} />
       </div>
 
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
@@ -2093,14 +2461,20 @@ function OrderDetail({
 
       <div className="mt-4 shrink-0 space-y-2 border-t border-[#d6c9aa] pt-4">
         {order.discount > 0 && (
-          <div className="flex justify-between text-sm font-bold text-[#68705c]">
-            <span>Diskon</span>
+          <div className="flex justify-between gap-3 text-sm font-bold text-[#68705c]">
+            <span>Diskon {order.discountReason ? `(${order.discountReason})` : ""}</span>
             <span>{formatRupiah(order.discount)}</span>
           </div>
         )}
+        {order.refundAmount > 0 && (
+          <div className="flex justify-between gap-3 text-sm font-bold text-[#a13f28]">
+            <span>Refund</span>
+            <span>-{formatRupiah(order.refundAmount)}</span>
+          </div>
+        )}
         <div className="flex justify-between text-lg font-black">
-          <span>Total</span>
-          <span>{formatRupiah(order.total)}</span>
+          <span>Total bersih</span>
+          <span>{formatRupiah(netOrderTotal(order))}</span>
         </div>
         {order.cashReceived !== null && (
           <>
@@ -2283,6 +2657,9 @@ function PrintableReceipt({
           </div>
           <div className="receipt-line" />
           <p>No: {order.orderNumber}</p>
+          {order.queueNumber && (
+            <p>Antrean: #{String(order.queueNumber).padStart(3, "0")}</p>
+          )}
           <p>{formatOrderDate(order.createdAt)}</p>
           <p>Jenis: {order.orderType}</p>
           {order.tableNumber && <p>Meja: {order.tableNumber}</p>}
@@ -2321,6 +2698,9 @@ function PrintableReceipt({
         </div>
         <div className="receipt-line" />
         <p>No: {order.orderNumber}</p>
+        {order.queueNumber && (
+          <p>Antrean: #{String(order.queueNumber).padStart(3, "0")}</p>
+        )}
         <p>{formatOrderDate(order.createdAt)}</p>
         <p>Jenis: {order.orderType}</p>
         {order.tableNumber && <p>Meja: {order.tableNumber}</p>}
@@ -2342,9 +2722,15 @@ function PrintableReceipt({
             <span>-{formatRupiah(order.discount)}</span>
           </div>
         )}
+        {order.refundAmount > 0 && (
+          <div className="receipt-row">
+            <span>Refund</span>
+            <span>-{formatRupiah(order.refundAmount)}</span>
+          </div>
+        )}
         <div className="receipt-row total">
           <span>Total</span>
-          <span>{formatRupiah(order.total)}</span>
+          <span>{formatRupiah(netOrderTotal(order))}</span>
         </div>
         <div className="receipt-row">
           <span>{order.paymentMethod}</span>
@@ -2360,6 +2746,74 @@ function PrintableReceipt({
         )}
         <div className="receipt-line" />
         <p className="center">Terima kasih</p>
+      </div>
+    </div>
+  );
+}
+
+function PrintableShiftReport({
+  shift,
+  summary,
+}: {
+  shift: CashierShift | null;
+  summary: ShiftSummary;
+}) {
+  if (!shift) return null;
+
+  const expectedCash = shift.openingCash + summary.cashSales - summary.cashRefund;
+
+  return (
+    <div className="receipt-print hidden">
+      <div className="receipt-paper">
+        <div className="receipt-head">
+          <h2>Laporan Shift</h2>
+          <p>Joyful Healthy Bistro & Cafe</p>
+        </div>
+        <div className="receipt-line" />
+        <p>Kasir: {shift.openedByName}</p>
+        <p>Buka: {formatOrderDate(shift.openedAt)}</p>
+        <div className="receipt-line" />
+        <div className="receipt-row">
+          <span>Modal awal</span>
+          <span>{formatRupiah(shift.openingCash)}</span>
+        </div>
+        <div className="receipt-row">
+          <span>Total penjualan</span>
+          <span>{formatRupiah(summary.sales)}</span>
+        </div>
+        <div className="receipt-row">
+          <span>Tunai</span>
+          <span>{formatRupiah(summary.cashSales)}</span>
+        </div>
+        <div className="receipt-row">
+          <span>QRIS</span>
+          <span>{formatRupiah(summary.qrisSales)}</span>
+        </div>
+        <div className="receipt-row">
+          <span>Transfer/Debit/E-Wallet</span>
+          <span>
+            {formatRupiah(
+              summary.transferSales + summary.debitSales + summary.ewalletSales,
+            )}
+          </span>
+        </div>
+        <div className="receipt-row">
+          <span>Diskon</span>
+          <span>{formatRupiah(summary.discountTotal)}</span>
+        </div>
+        <div className="receipt-row">
+          <span>Refund</span>
+          <span>{formatRupiah(summary.refundTotal)}</span>
+        </div>
+        <div className="receipt-row">
+          <span>Void</span>
+          <span>{summary.voidCount}</span>
+        </div>
+        <div className="receipt-line" />
+        <div className="receipt-row total">
+          <span>Estimasi uang laci</span>
+          <span>{formatRupiah(expectedCash)}</span>
+        </div>
       </div>
     </div>
   );
@@ -2427,6 +2881,39 @@ function getSoldProducts(orders: Order[]) {
     if (b.quantity !== a.quantity) return b.quantity - a.quantity;
     return b.total - a.total;
   });
+}
+
+function netOrderTotal(order: Order) {
+  return Math.max(order.total - order.refundAmount, 0);
+}
+
+function getShiftSummary(orders: Order[]): ShiftSummary {
+  const completedOrders = orders.filter((order) =>
+    ["paid", "partially_refunded", "refunded"].includes(order.status),
+  );
+  const cancelledOrders = orders.filter((order) => order.status === "cancelled");
+  const paymentTotal = (method: string) =>
+    completedOrders
+      .filter((order) => order.paymentMethod === method)
+      .reduce((sum, order) => sum + netOrderTotal(order), 0);
+
+  return {
+    orderCount: completedOrders.length,
+    voidCount: cancelledOrders.length,
+    refundCount: completedOrders.filter((order) => order.refundAmount > 0).length,
+    sales: completedOrders.reduce((sum, order) => sum + netOrderTotal(order), 0),
+    cashSales: paymentTotal("Tunai"),
+    qrisSales: paymentTotal("QRIS manual"),
+    transferSales: paymentTotal("Transfer"),
+    debitSales: paymentTotal("Debit"),
+    ewalletSales: paymentTotal("E-Wallet"),
+    splitSales: paymentTotal("Split payment"),
+    discountTotal: completedOrders.reduce((sum, order) => sum + order.discount, 0),
+    cashRefund: completedOrders
+      .filter((order) => order.paymentMethod === "Tunai")
+      .reduce((sum, order) => sum + order.refundAmount, 0),
+    refundTotal: completedOrders.reduce((sum, order) => sum + order.refundAmount, 0),
+  };
 }
 
 function isUploadedImage(imageUrl: string | null) {

@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export default async function Home() {
   const user = await requireUser();
   const canManage = user.role === "owner" || user.role === "admin";
-  const [products, categories, orders, users, auditLogs] = await Promise.all([
+  const [products, categories, orders, users, auditLogs, currentShift] = await Promise.all([
     prisma.product.findMany({
       include: { category: true },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
@@ -16,7 +16,7 @@ export default async function Home() {
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     }),
     prisma.order.findMany({
-      include: { items: true },
+      include: { items: true, refunds: true },
       orderBy: { createdAt: "desc" },
       take: 1000,
     }),
@@ -40,6 +40,11 @@ export default async function Home() {
           take: 100,
         })
       : Promise.resolve([]),
+    prisma.cashierShift.findFirst({
+      where: { status: "open" },
+      orderBy: { openedAt: "desc" },
+      include: { orders: { include: { items: true, refunds: true } } },
+    }),
   ]);
 
   return (
@@ -62,7 +67,30 @@ export default async function Home() {
       initialOrders={orders.map((order) => ({
         ...order,
         createdAt: order.createdAt.toISOString(),
+        updatedAt: order.updatedAt.toISOString(),
+        refunds: order.refunds.map((refund) => ({
+          ...refund,
+          createdAt: refund.createdAt.toISOString(),
+        })),
       }))}
+      initialCurrentShift={
+        currentShift
+          ? {
+              ...currentShift,
+              openedAt: currentShift.openedAt.toISOString(),
+              closedAt: currentShift.closedAt?.toISOString() ?? null,
+              orders: currentShift.orders.map((order) => ({
+                ...order,
+                createdAt: order.createdAt.toISOString(),
+                updatedAt: order.updatedAt.toISOString(),
+                refunds: order.refunds.map((refund) => ({
+                  ...refund,
+                  createdAt: refund.createdAt.toISOString(),
+                })),
+              })),
+            }
+          : null
+      }
       initialUsers={users.map((item) => ({
         ...item,
         createdAt: item.createdAt.toISOString(),

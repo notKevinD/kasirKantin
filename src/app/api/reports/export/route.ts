@@ -33,7 +33,7 @@ export async function GET(request: Request) {
 
   const orders = await prisma.order.findMany({
     where: {
-      status: "paid",
+      status: { in: ["paid", "partially_refunded", "refunded"] },
       createdAt: {
         gte: start,
         lt: end,
@@ -43,14 +43,28 @@ export async function GET(request: Request) {
     orderBy: { createdAt: "desc" },
   });
 
-  const totalSales = orders.reduce((sum, order) => sum + order.total, 0);
+  const totalSales = orders.reduce((sum, order) => sum + netOrderTotal(order), 0);
   const discountTotal = orders.reduce((sum, order) => sum + order.discount, 0);
+  const refundTotal = orders.reduce((sum, order) => sum + order.refundAmount, 0);
   const cashSales = orders
     .filter((order) => order.paymentMethod === "Tunai")
-    .reduce((sum, order) => sum + order.total, 0);
+    .reduce((sum, order) => sum + netOrderTotal(order), 0);
   const qrisSales = orders
     .filter((order) => order.paymentMethod === "QRIS manual")
-    .reduce((sum, order) => sum + order.total, 0);
+    .reduce((sum, order) => sum + netOrderTotal(order), 0);
+  const transferSales = sumPayment(orders, "Transfer");
+  const debitSales = sumPayment(orders, "Debit");
+  const ewalletSales = sumPayment(orders, "E-Wallet");
+  const splitSales = sumPayment(orders, "Split payment");
+  const voidCount = await prisma.order.count({
+    where: {
+      status: "cancelled",
+      createdAt: {
+        gte: start,
+        lt: end,
+      },
+    },
+  });
   const soldProducts = getSoldProducts(orders);
 
   const workbook = createExcelXml([
@@ -63,9 +77,15 @@ export async function GET(request: Request) {
         ["Sampai", formatOrderDate(new Date(end.getTime() - 1))],
         ["Total penjualan", totalSales],
         ["Total diskon", discountTotal],
+        ["Total refund", refundTotal],
         ["Jumlah transaksi", orders.length],
+        ["Void", voidCount],
         ["Tunai", cashSales],
         ["QRIS manual", qrisSales],
+        ["Transfer", transferSales],
+        ["Debit", debitSales],
+        ["E-Wallet", ewalletSales],
+        ["Split payment", splitSales],
       ],
     },
     {
@@ -73,6 +93,7 @@ export async function GET(request: Request) {
       rows: [
         [
           "No Transaksi",
+          "No Antrean",
           "Waktu",
           "Jenis",
           "Pembayaran",
@@ -80,14 +101,21 @@ export async function GET(request: Request) {
           "Meja",
           "Pelanggan",
           "Kasir",
+          "Tipe Diskon",
+          "Nilai Diskon",
+          "Alasan Diskon",
           "Diskon",
+          "Refund",
+          "Alasan Refund",
           "Total",
+          "Total Bersih",
           "Uang Diterima",
           "Kembalian",
           "Catatan",
         ],
         ...orders.map((order) => [
           order.orderNumber,
+          order.queueNumber ?? "",
           formatOrderDate(order.createdAt),
           order.orderType,
           order.paymentMethod,
@@ -95,8 +123,14 @@ export async function GET(request: Request) {
           order.tableNumber ?? "",
           order.customerName ?? "",
           order.cashierName ?? "",
+          order.discountType,
+          order.discountValue,
+          order.discountReason ?? "",
           order.discount,
+          order.refundAmount,
+          order.refundReason ?? "",
           order.total,
+          netOrderTotal(order),
           order.cashReceived ?? "",
           order.changeAmount ?? "",
           order.note ?? "",
@@ -212,6 +246,16 @@ function getSoldProducts(orders: ReportOrder[]) {
     if (b.quantity !== a.quantity) return b.quantity - a.quantity;
     return b.total - a.total;
   });
+}
+
+function netOrderTotal(order: ReportOrder) {
+  return Math.max(order.total - order.refundAmount, 0);
+}
+
+function sumPayment(orders: ReportOrder[], method: string) {
+  return orders
+    .filter((order) => order.paymentMethod === method)
+    .reduce((sum, order) => sum + netOrderTotal(order), 0);
 }
 
 function formatFileDate(date: Date) {

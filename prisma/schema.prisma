@@ -22,6 +22,7 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   orders       Order[]
+  shifts       CashierShift[]
 }
 
 model Product {
@@ -51,6 +52,8 @@ model Category {
 model Order {
   id            String      @id @default(cuid())
   orderNumber   String      @unique
+  queueNumber   Int?
+  orderDate     String?
   orderType     String
   status        String      @default("paid")
   paymentMethod String
@@ -59,15 +62,25 @@ model Order {
   cashierId     String?
   cashierName   String?
   discount      Int         @default(0)
+  discountType  String      @default("amount")
+  discountValue Int         @default(0)
+  discountReason String?
   voidReason    String?
+  refundAmount  Int         @default(0)
+  refundReason  String?
   total         Int
   cashReceived  Int?
   changeAmount  Int?
   note          String?
+  shiftId       String?
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
   cashier       User?       @relation(fields: [cashierId], references: [id])
+  shift         CashierShift? @relation(fields: [shiftId], references: [id])
   items         OrderItem[]
+  refunds       Refund[]
+
+  @@unique([orderDate, queueNumber])
 }
 
 model OrderItem {
@@ -92,4 +105,31 @@ model AuditLog {
   entityId   String
   metadata   Json?
   createdAt  DateTime @default(now())
+}
+
+model CashierShift {
+  id             String    @id @default(cuid())
+  openedById     String?
+  openedByName   String
+  openingCash    Int       @default(0)
+  closingCash    Int?
+  expectedCash   Int?
+  cashDifference Int?
+  note           String?
+  status         String    @default("open")
+  openedAt       DateTime  @default(now())
+  closedAt       DateTime?
+  openedBy       User?     @relation(fields: [openedById], references: [id])
+  orders         Order[]
+}
+
+model Refund {
+  id        String   @id @default(cuid())
+  orderId   String
+  amount    Int
+  reason    String
+  userId    String?
+  username  String?
+  createdAt DateTime @default(now())
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
 }

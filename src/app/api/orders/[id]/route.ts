@@ -26,6 +26,24 @@ function normalizeItems(items: OrderItemInput[]) {
   });
 }
 
+function calculateDiscount(subtotal: number, body: Record<string, unknown>) {
+  const discountType = body.discountType === "percent" ? "percent" : "amount";
+  const discountValue = Math.max(Number(body.discountValue ?? body.discount ?? 0), 0);
+  const rawDiscount =
+    discountType === "percent"
+      ? Math.round((subtotal * Math.min(discountValue, 100)) / 100)
+      : discountValue;
+
+  return {
+    discountType,
+    discountValue,
+    discount: Math.min(rawDiscount, subtotal),
+    discountReason: body.discountReason
+      ? String(body.discountReason).trim()
+      : null,
+  };
+}
+
 export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> },
@@ -74,7 +92,12 @@ export async function PATCH(
 
       const normalizedItems = normalizeItems(items);
       const subtotal = normalizedItems.reduce((sum, item) => sum + item.subtotal, 0);
-      const discount = Math.max(Number(body.discount || 0), 0);
+      const {
+        discountType,
+        discountValue,
+        discount,
+        discountReason,
+      } = calculateDiscount(subtotal, body);
       const total = Math.max(subtotal - discount, 0);
       const nextStatus = body.status === "in_progress" ? "in_progress" : "paid";
       const cashReceived =
@@ -83,6 +106,10 @@ export async function PATCH(
         body.cashReceived === undefined
           ? null
           : Number(body.cashReceived);
+
+      if (discount > 0 && !discountReason) {
+        throw new Error("DISCOUNT_REASON_REQUIRED");
+      }
 
       await tx.orderItem.deleteMany({ where: { orderId: id } });
 
@@ -100,6 +127,9 @@ export async function PATCH(
           cashierId: before.cashierId ?? session?.userId,
           cashierName: before.cashierName ?? cashier?.name ?? session?.username,
           discount,
+          discountType,
+          discountValue,
+          discountReason,
           total,
           cashReceived,
           changeAmount:
@@ -120,6 +150,20 @@ export async function PATCH(
           entityType: "Order",
           entityId: id,
           metadata: {
+            before: {
+              total: before.total,
+              status: before.status,
+              paymentMethod: before.paymentMethod,
+              discount: before.discount,
+              itemCount: before.items.length,
+            },
+            after: {
+              total: updatedOrder.total,
+              status: updatedOrder.status,
+              paymentMethod: updatedOrder.paymentMethod,
+              discount: updatedOrder.discount,
+              itemCount: updatedOrder.items.length,
+            },
             beforeTotal: before?.total,
             afterTotal: updatedOrder.total,
             orderNumber: updatedOrder.orderNumber,
@@ -143,6 +187,13 @@ export async function PATCH(
       return NextResponse.json(
         { message: "Hanya admin/owner yang bisa mengubah transaksi selesai." },
         { status: 403 },
+      );
+    }
+
+    if (error instanceof Error && error.message === "DISCOUNT_REASON_REQUIRED") {
+      return NextResponse.json(
+        { message: "Alasan diskon wajib diisi." },
+        { status: 400 },
       );
     }
 
