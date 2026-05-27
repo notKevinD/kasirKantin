@@ -382,6 +382,9 @@ export function PosApp({
     matchesTransactionQuery(order, transactionQuery),
   );
   const soldProducts = getSoldProducts(reportOrders);
+  const visibleShiftHistory = shiftHistory.filter((shift) =>
+    isShiftInRange(shift, reportRange, customStartDate, customEndDate),
+  );
   const activeShiftOrders = currentShift
     ? orders.filter((order) => order.shiftId === currentShift.id)
     : [];
@@ -2057,7 +2060,7 @@ export function PosApp({
             </div>
 
             <div className="grid gap-4">
-              <ShiftHistoryPanel shifts={shiftHistory} />
+              <ShiftHistoryPanel shifts={visibleShiftHistory} />
               <div className="grid min-h-[440px] gap-4 lg:grid-cols-[minmax(0,1fr)_380px] xl:grid-cols-[minmax(0,1fr)_440px]">
                 <div className="flex min-h-[440px] min-w-0 flex-col overflow-hidden rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4">
                 <div className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-3">
@@ -2675,13 +2678,13 @@ function ShiftHistoryPanel({ shifts }: { shifts: ShiftHistoryItem[] }) {
           <History size={22} /> Riwayat Shift
         </h2>
         <p className="text-sm font-bold text-[#68705c]">
-          Menampilkan shift yang sudah ditutup.
+          {shifts.length} shift pada periode ini.
         </p>
       </div>
 
       {shifts.length === 0 ? (
         <div className="rounded-[8px] border border-dashed border-[#c8b98f] p-6 text-center font-bold text-[#68705c]">
-          Belum ada shift yang selesai.
+          Belum ada shift yang selesai pada periode ini.
         </div>
       ) : (
         <div className="max-h-[300px] space-y-3 overflow-y-auto pr-1">
@@ -3621,6 +3624,20 @@ function isOrderInRange(
     endDate: customEndDate,
   });
   return orderDate >= start && orderDate < end;
+}
+
+function isShiftInRange(
+  shift: CashierShift,
+  range: ReportRange,
+  customStartDate: string,
+  customEndDate: string,
+) {
+  const shiftDate = new Date(shift.closedAt ?? shift.openedAt);
+  const { start, end } = getReportRangeWindow(range, new Date(), {
+    startDate: customStartDate,
+    endDate: customEndDate,
+  });
+  return shiftDate >= start && shiftDate < end;
 }
 
 function getDateInputValue(date: Date) {
