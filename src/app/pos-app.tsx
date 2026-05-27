@@ -2782,10 +2782,10 @@ function PrintableShiftReport({
           <span>{formatRupiah(summary.qrisSales)}</span>
         </div>
         <div className="receipt-row">
-          <span>Transfer/Debit/E-Wallet</span>
+          <span>Transfer</span>
           <span>
             {formatRupiah(
-              summary.transferSales + summary.debitSales + summary.ewalletSales,
+              summary.transferSales,
             )}
           </span>
         </div>
