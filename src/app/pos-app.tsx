@@ -1668,7 +1668,7 @@ export function PosApp({
                     key={product.id}
                     className="min-w-0 overflow-hidden rounded-[8px] border border-[#e1d5b8] bg-white"
                   >
-                    <div className="relative aspect-[4/3] max-h-40 bg-[#eef3df]">
+                    <div className="relative aspect-[16/9] w-full bg-[#eef3df]">
                         {product.imageUrl ? (
                           <Image
                             src={getDisplayImageUrl(product.imageUrl)}
