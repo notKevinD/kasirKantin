@@ -246,6 +246,8 @@ export function PosApp({
   const [isSavingCategory, setIsSavingCategory] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [isOrderConfirmOpen, setIsOrderConfirmOpen] = useState(false);
+  const [isOrderEditModalOpen, setIsOrderEditModalOpen] = useState(false);
+  const [isProductEditModalOpen, setIsProductEditModalOpen] = useState(false);
   const [userForm, setUserForm] = useState({
     name: "",
     username: "",
@@ -257,6 +259,7 @@ export function PosApp({
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const [bouncingProductId, setBouncingProductId] = useState<string | null>(null);
   const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const toastIdRef = useRef(0);
   const canManageMenu = user.role === "owner" || user.role === "admin";
   const canManageUsers = user.role === "owner" || user.role === "admin";
   const canViewReports = user.role === "owner" || user.role === "admin";
@@ -395,7 +398,8 @@ export function PosApp({
       clearTimeout(toastTimeoutRef.current);
     }
 
-    setToast({ id: Date.now(), message });
+    toastIdRef.current += 1;
+    setToast({ id: toastIdRef.current, message });
     toastTimeoutRef.current = setTimeout(() => setToast(null), 2400);
   }
 
@@ -524,6 +528,7 @@ export function PosApp({
       setDiscountType("amount");
       setDiscountReason("");
       setEditingOrderId(null);
+      setIsOrderEditModalOpen(false);
       setCheckoutMode("now");
       setIsOrderConfirmOpen(false);
       showToast(
@@ -578,6 +583,7 @@ export function PosApp({
         setProducts((current) =>
           current.map((item) => (item.id === product.id ? product : item)),
         );
+        setIsProductEditModalOpen(false);
         resetProductForm(event.currentTarget);
         return;
       }
@@ -639,6 +645,7 @@ export function PosApp({
     });
     setProductImage(null);
     setEditingProductId(null);
+    setIsProductEditModalOpen(false);
     form?.reset();
   }
 
@@ -651,6 +658,7 @@ export function PosApp({
       description: product.description ?? "",
     });
     setProductImage(null);
+    setIsProductEditModalOpen(true);
   }
 
   async function deleteProduct(product: Product) {
@@ -819,10 +827,12 @@ export function PosApp({
       })),
     );
     setActiveTab("kasir");
+    setIsOrderEditModalOpen(true);
   }
 
   function cancelEditOrder() {
     setEditingOrderId(null);
+    setIsOrderEditModalOpen(false);
     setCart([]);
     setCashReceived("");
     setCustomerName("");
@@ -1266,9 +1276,16 @@ export function PosApp({
                         <button
                           type="button"
                           onClick={() => startEditOrder(order, "later")}
-                          className="col-span-2 min-h-9 rounded-[8px] bg-[#eef3df] px-2 py-1 text-xs font-black leading-tight text-[#28451f]"
+                          className="min-h-9 rounded-[8px] bg-[#eef3df] px-2 py-1 text-xs font-black leading-tight text-[#28451f]"
                         >
                           Tambah/Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => startEditOrder(order, "now")}
+                          className="min-h-9 rounded-[8px] bg-[#28451f] px-2 py-1 text-xs font-black leading-tight text-white"
+                        >
+                          Bayar
                         </button>
                         <button
                           type="button"
@@ -1279,10 +1296,10 @@ export function PosApp({
                         </button>
                         <button
                           type="button"
-                          onClick={() => startEditOrder(order, "now")}
-                          className="min-h-9 rounded-[8px] bg-[#28451f] px-2 py-1 text-xs font-black leading-tight text-white"
+                          onClick={() => deleteOrder(order)}
+                          className="min-h-9 rounded-[8px] bg-[#f5ded5] px-2 py-1 text-xs font-black leading-tight text-[#a13f28]"
                         >
-                          Bayar
+                          Batal
                         </button>
                       </div>
                     </div>
@@ -2149,6 +2166,280 @@ export function PosApp({
           </section>
         )}
       </section>
+
+      {isOrderEditModalOpen && editingOrderId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3">
+          <div className="grid max-h-[92vh] w-full max-w-5xl overflow-hidden rounded-[8px] bg-[#fffdf5] shadow-2xl lg:grid-cols-[minmax(0,1fr)_380px]">
+            <section className="min-h-0 overflow-hidden border-b border-[#d6c9aa] p-4 lg:border-b-0 lg:border-r">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <h2 className="text-xl font-black">
+                  {checkoutMode === "later" ? "Tambah/Edit Pesanan" : "Bayar Pesanan"}
+                </h2>
+                <button
+                  type="button"
+                  onClick={cancelEditOrder}
+                  className="rounded-[8px] bg-[#f5ded5] px-3 py-2 text-sm font-black text-[#a13f28]"
+                >
+                  Tutup
+                </button>
+              </div>
+              <div className="mb-3 flex h-11 items-center gap-2 rounded-[8px] border border-[#d6c9aa] bg-white px-3">
+                <Search size={18} />
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Cari menu untuk ditambahkan..."
+                  className="h-full flex-1 bg-transparent outline-none"
+                />
+              </div>
+              <div className="mb-3 flex flex-wrap gap-2">
+                {[{ id: "all", name: "Semua" }, ...categories].map((category) => (
+                  <button
+                    key={category.id}
+                    onClick={() => setActiveCategoryId(category.id)}
+                    className={`h-9 rounded-[8px] px-3 text-sm font-bold ${
+                      activeCategoryId === category.id
+                        ? "bg-[#d85f32] text-white"
+                        : "bg-[#eef3df] text-[#28451f]"
+                    }`}
+                  >
+                    {category.name}
+                  </button>
+                ))}
+              </div>
+              <div className="max-h-[58vh] overflow-y-auto pr-1">
+                <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
+                  {visibleProducts.map((product) => (
+                    <button
+                      key={product.id}
+                      type="button"
+                      onClick={() => addToCart(product)}
+                      disabled={!product.isAvailable}
+                      className="overflow-hidden rounded-[8px] border border-[#d6c9aa] bg-white text-left disabled:opacity-50"
+                    >
+                      <div className="relative aspect-[16/9] bg-[#eef3df]">
+                        {product.imageUrl && (
+                          <Image
+                            src={getDisplayImageUrl(product.imageUrl)}
+                            alt={product.name}
+                            fill
+                            unoptimized={isUploadedImage(product.imageUrl)}
+                            className="object-cover"
+                          />
+                        )}
+                      </div>
+                      <div className="p-2">
+                        <p className="line-clamp-2 text-sm font-black leading-tight">
+                          {product.name}
+                        </p>
+                        <p className="mt-1 text-sm font-black text-[#d85f32]">
+                          {formatRupiah(product.price)}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </section>
+
+            <aside className="min-h-0 overflow-y-auto p-4">
+              <div className="mb-3 grid grid-cols-2 gap-2">
+                {["Dine in", "Bungkus"].map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => setOrderType(type)}
+                    className={`h-10 rounded-[8px] font-bold ${
+                      orderType === type ? "bg-[#28451f] text-white" : "bg-[#eef3df]"
+                    }`}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
+              <div className="mb-3 grid gap-2">
+                <input
+                  value={tableNumber}
+                  onChange={(event) => setTableNumber(event.target.value)}
+                  placeholder="Nomor meja"
+                  className="h-10 rounded-[8px] border border-[#d6c9aa] px-3 font-bold outline-none"
+                />
+                <input
+                  value={customerName}
+                  onChange={(event) => setCustomerName(event.target.value)}
+                  placeholder="Nama pelanggan"
+                  className="h-10 rounded-[8px] border border-[#d6c9aa] px-3 font-bold outline-none"
+                />
+              </div>
+              <div className="space-y-2">
+                {cart.map((item) => (
+                  <div
+                    key={item.lineId}
+                    className="rounded-[8px] border border-[#e1d5b8] bg-white p-3"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-black leading-tight">{item.productName}</p>
+                        <p className="text-sm text-[#68705c]">
+                          {formatRupiah(item.unitPrice)}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => updateQuantity(item.lineId, -1)}
+                          className="grid h-8 w-8 place-items-center rounded-[8px] bg-[#eef3df]"
+                        >
+                          <Minus size={15} />
+                        </button>
+                        <span className="w-6 text-center font-black">{item.quantity}</span>
+                        <button
+                          onClick={() => updateQuantity(item.lineId, 1)}
+                          className="grid h-8 w-8 place-items-center rounded-[8px] bg-[#28451f] text-white"
+                        >
+                          <Plus size={15} />
+                        </button>
+                      </div>
+                    </div>
+                    <input
+                      value={item.note}
+                      onChange={(event) => updateNote(item.lineId, event.target.value)}
+                      placeholder="Catatan..."
+                      className="mt-2 h-9 w-full rounded-[8px] border border-[#e1d5b8] px-3 outline-none"
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 space-y-2 border-t border-[#d6c9aa] pt-3">
+                <div className="flex justify-between text-sm font-bold text-[#68705c]">
+                  <span>Subtotal</span>
+                  <span>{formatRupiah(cartSubtotal)}</span>
+                </div>
+                <div className="flex justify-between text-lg font-black">
+                  <span>Total</span>
+                  <span>{formatRupiah(cartTotal)}</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setCheckoutMode("later")}
+                    className={`h-10 rounded-[8px] font-bold ${
+                      checkoutMode === "later" ? "bg-[#28451f] text-white" : "bg-[#eef3df]"
+                    }`}
+                  >
+                    Bayar nanti
+                  </button>
+                  <button
+                    onClick={() => setCheckoutMode("now")}
+                    className={`h-10 rounded-[8px] font-bold ${
+                      checkoutMode === "now" ? "bg-[#28451f] text-white" : "bg-[#eef3df]"
+                    }`}
+                  >
+                    Bayar sekarang
+                  </button>
+                </div>
+                {checkoutMode === "now" && (
+                  <div className="grid grid-cols-2 gap-2">
+                    {paymentMethods.map((method) => (
+                      <button
+                        key={method}
+                        onClick={() => setPaymentMethod(method)}
+                        className={`h-10 rounded-[8px] text-sm font-bold ${
+                          paymentMethod === method
+                            ? "bg-[#d85f32] text-white"
+                            : "bg-[#eef3df]"
+                        }`}
+                      >
+                        {method === "QRIS manual" ? "QRIS" : method}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {checkoutMode === "now" && paymentMethod === "Tunai" && (
+                  <input
+                    value={cashReceived}
+                    onChange={(event) => setCashReceived(onlyDigits(event.target.value))}
+                    inputMode="numeric"
+                    placeholder="Uang diterima"
+                    className="h-10 w-full rounded-[8px] border border-[#d6c9aa] px-3 font-bold outline-none"
+                  />
+                )}
+                <button
+                  onClick={requestOrderConfirmation}
+                  disabled={cart.length === 0 || isSavingOrder}
+                  className="h-11 w-full rounded-[8px] bg-[#28451f] font-black text-white disabled:opacity-50"
+                >
+                  {checkoutMode === "later" ? "Simpan Pesanan" : "Konfirmasi Bayar"}
+                </button>
+              </div>
+            </aside>
+          </div>
+        </div>
+      )}
+
+      {isProductEditModalOpen && editingProductId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3">
+          <form
+            onSubmit={addProduct}
+            className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-[8px] bg-[#fffdf5] p-4 shadow-2xl"
+          >
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h2 className="flex items-center gap-2 text-xl font-black">
+                <Utensils size={22} /> Edit Menu
+              </h2>
+              <button
+                type="button"
+                onClick={() => resetProductForm()}
+                className="rounded-[8px] bg-[#f5ded5] px-3 py-2 text-sm font-black text-[#a13f28]"
+              >
+                Tutup
+              </button>
+            </div>
+            <FormInput
+              label="Nama menu"
+              value={productForm.name}
+              onChange={(value) =>
+                setProductForm((current) => ({ ...current, name: value }))
+              }
+            />
+            <CategorySelect
+              categories={categories}
+              value={productForm.categoryId}
+              onChange={(value) =>
+                setProductForm((current) => ({ ...current, categoryId: value }))
+              }
+            />
+            <FormInput
+              label="Harga"
+              value={productForm.price}
+              inputMode="numeric"
+              onChange={(value) =>
+                setProductForm((current) => ({ ...current, price: value }))
+              }
+            />
+            <FormInput
+              label="Deskripsi singkat"
+              value={productForm.description}
+              onChange={(value) =>
+                setProductForm((current) => ({ ...current, description: value }))
+              }
+            />
+            <PhotoInput
+              fileName={productImage?.name ?? ""}
+              onChange={setProductImage}
+              disabled={isSavingProduct}
+              helperText="Kosongkan jika tidak ingin mengganti foto."
+            />
+            <button
+              disabled={isSavingProduct}
+              className="h-12 w-full rounded-[8px] bg-[#28451f] font-black text-white disabled:opacity-50"
+            >
+              {isUploadingPhoto
+                ? "Mengupload foto..."
+                : isSavingProduct
+                ? "Menyimpan..."
+                : "Simpan Perubahan"}
+            </button>
+          </form>
+        </div>
+      )}
 
       <OrderConfirmationModal
         isOpen={isOrderConfirmOpen}

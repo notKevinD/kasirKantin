@@ -205,7 +205,7 @@ export async function DELETE(
   _request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const authError = await requireApiUser(["owner", "admin"]);
+  const authError = await requireApiUser();
   if (authError) return authError;
   const originError = requireSameOrigin(_request);
   if (originError) return originError;
@@ -222,27 +222,58 @@ export async function DELETE(
     );
   }
 
-  await prisma.$transaction(async (tx) => {
-    const order = await tx.order.update({
+  try {
+    await prisma.$transaction(async (tx) => {
+      const before = await tx.order.findUnique({ where: { id } });
+
+      if (!before) throw new Error("ORDER_NOT_FOUND");
+
+      if (
+        before.status !== "in_progress" &&
+        session?.role !== "owner" &&
+        session?.role !== "admin"
+      ) {
+        throw new Error("ORDER_FORBIDDEN");
+      }
+
+      const order = await tx.order.update({
       where: { id },
       data: { status: "cancelled", voidReason: reason },
     });
 
-    await tx.auditLog.create({
+      await tx.auditLog.create({
       data: {
         userId: session?.userId,
         username: session?.username,
-        action: "order.cancel",
+        action: before.status === "in_progress" ? "order.cancel_pending" : "order.cancel",
         entityType: "Order",
         entityId: id,
         metadata: {
           orderNumber: order.orderNumber,
           total: order.total,
           reason,
+          beforeStatus: before.status,
         },
       },
     });
-  });
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "ORDER_NOT_FOUND") {
+      return NextResponse.json(
+        { message: "Transaksi tidak ditemukan." },
+        { status: 404 },
+      );
+    }
+
+    if (error instanceof Error && error.message === "ORDER_FORBIDDEN") {
+      return NextResponse.json(
+        { message: "Hanya admin/owner yang bisa void transaksi selesai." },
+        { status: 403 },
+      );
+    }
+
+    throw error;
+  }
 
   return NextResponse.json({ ok: true });
 }
