@@ -167,9 +167,6 @@ function summarizeShift(shift: ShiftWithOrders) {
     cashSales: sumPayment("Tunai"),
     qrisSales: sumPayment("QRIS manual"),
     transferSales: sumPayment("Transfer"),
-    debitSales: sumPayment("Debit"),
-    ewalletSales: sumPayment("E-Wallet"),
-    splitSales: sumPayment("Split payment"),
     discountTotal: paidOrders.reduce((sum, order) => sum + order.discount, 0),
     cashRefund: refundedOrders
       .filter((order) => order.paymentMethod === "Tunai")

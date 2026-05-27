@@ -53,9 +53,6 @@ export async function GET(request: Request) {
     .filter((order) => order.paymentMethod === "QRIS manual")
     .reduce((sum, order) => sum + netOrderTotal(order), 0);
   const transferSales = sumPayment(orders, "Transfer");
-  const debitSales = sumPayment(orders, "Debit");
-  const ewalletSales = sumPayment(orders, "E-Wallet");
-  const splitSales = sumPayment(orders, "Split payment");
   const voidCount = await prisma.order.count({
     where: {
       status: "cancelled",
@@ -83,9 +80,6 @@ export async function GET(request: Request) {
         ["Tunai", cashSales],
         ["QRIS manual", qrisSales],
         ["Transfer", transferSales],
-        ["Debit", debitSales],
-        ["E-Wallet", ewalletSales],
-        ["Split payment", splitSales],
       ],
     },
     {

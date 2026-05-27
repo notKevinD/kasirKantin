@@ -121,9 +121,6 @@ type ShiftSummary = {
   cashSales: number;
   qrisSales: number;
   transferSales: number;
-  debitSales: number;
-  ewalletSales: number;
-  splitSales: number;
   discountTotal: number;
   cashRefund: number;
   refundTotal: number;
@@ -180,9 +177,7 @@ const paymentMethods = [
   "Tunai",
   "QRIS manual",
   "Transfer",
-  "Debit",
-  "E-Wallet",
-  "Split payment",
+
 ];
 
 export function PosApp({
@@ -1866,9 +1861,6 @@ export function PosApp({
                 <Summary label="Tunai" value={formatRupiah(reportPaymentSales["Tunai"] ?? 0)} />
                 <Summary label="QRIS manual" value={formatRupiah(reportPaymentSales["QRIS manual"] ?? 0)} />
                 <Summary label="Transfer" value={formatRupiah(reportPaymentSales.Transfer ?? 0)} />
-                <Summary label="Debit" value={formatRupiah(reportPaymentSales.Debit ?? 0)} />
-                <Summary label="E-Wallet" value={formatRupiah(reportPaymentSales["E-Wallet"] ?? 0)} />
-                <Summary label="Split" value={formatRupiah(reportPaymentSales["Split payment"] ?? 0)} />
                 <Summary label="Diskon" value={formatRupiah(reportDiscountTotal)} />
                 <Summary label="Refund" value={formatRupiah(reportRefundTotal)} />
                 <Summary label="Void" value={`${cancelledReportOrders.length}`} />
@@ -2905,9 +2897,6 @@ function getShiftSummary(orders: Order[]): ShiftSummary {
     cashSales: paymentTotal("Tunai"),
     qrisSales: paymentTotal("QRIS manual"),
     transferSales: paymentTotal("Transfer"),
-    debitSales: paymentTotal("Debit"),
-    ewalletSales: paymentTotal("E-Wallet"),
-    splitSales: paymentTotal("Split payment"),
     discountTotal: completedOrders.reduce((sum, order) => sum + order.discount, 0),
     cashRefund: completedOrders
       .filter((order) => order.paymentMethod === "Tunai")
