@@ -1262,25 +1262,25 @@ export function PosApp({
                       <p className="mb-3 text-sm font-bold text-[#68705c]">
                         {order.items.length} jenis item - {order.orderType}
                       </p>
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-2 gap-2">
                         <button
                           type="button"
                           onClick={() => startEditOrder(order, "later")}
-                          className="h-10 rounded-[8px] bg-[#eef3df] text-sm font-black text-[#28451f]"
+                          className="col-span-2 min-h-9 rounded-[8px] bg-[#eef3df] px-2 py-1 text-xs font-black leading-tight text-[#28451f]"
                         >
                           Tambah/Edit
                         </button>
                         <button
                           type="button"
                           onClick={() => printKitchenOrder(order)}
-                          className="h-10 rounded-[8px] bg-[#f4efe2] text-sm font-black text-[#28451f]"
+                          className="min-h-9 rounded-[8px] bg-[#f4efe2] px-2 py-1 text-xs font-black leading-tight text-[#28451f]"
                         >
                           Kitchen
                         </button>
                         <button
                           type="button"
                           onClick={() => startEditOrder(order, "now")}
-                          className="h-10 rounded-[8px] bg-[#28451f] text-sm font-black text-white"
+                          className="min-h-9 rounded-[8px] bg-[#28451f] px-2 py-1 text-xs font-black leading-tight text-white"
                         >
                           Bayar
                         </button>
