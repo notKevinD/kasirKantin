@@ -18,6 +18,7 @@ import {
   ShoppingCart,
   Utensils,
   Users,
+  X,
 } from "lucide-react";
 import { FormEvent, useRef, useState } from "react";
 import { formatOrderDate, formatRupiah } from "@/lib/format";
@@ -2169,21 +2170,22 @@ export function PosApp({
 
       {isOrderEditModalOpen && editingOrderId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3">
-          <div className="grid max-h-[92vh] w-full max-w-5xl overflow-hidden rounded-[8px] bg-[#fffdf5] shadow-2xl lg:grid-cols-[minmax(0,1fr)_380px]">
-            <section className="min-h-0 overflow-hidden border-b border-[#d6c9aa] p-4 lg:border-b-0 lg:border-r">
-              <div className="mb-3 flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={cancelEditOrder}
+            className="absolute right-4 top-4 z-[70] grid h-11 w-11 place-items-center rounded-full bg-[#fffdf5] text-[#28451f] shadow-xl"
+            aria-label="Tutup popup transaksi"
+          >
+            <X size={24} />
+          </button>
+          <div className="grid max-h-[92vh] min-h-0 w-full max-w-5xl overflow-hidden rounded-[8px] bg-[#fffdf5] shadow-2xl lg:grid-cols-[minmax(0,1fr)_380px]">
+            <section className="flex min-h-0 flex-col overflow-hidden border-b border-[#d6c9aa] p-4 lg:max-h-[92vh] lg:border-b-0 lg:border-r">
+              <div className="mb-3 flex shrink-0 items-center justify-between gap-3">
                 <h2 className="text-xl font-black">
                   {checkoutMode === "later" ? "Tambah/Edit Pesanan" : "Bayar Pesanan"}
                 </h2>
-                <button
-                  type="button"
-                  onClick={cancelEditOrder}
-                  className="rounded-[8px] bg-[#f5ded5] px-3 py-2 text-sm font-black text-[#a13f28]"
-                >
-                  Tutup
-                </button>
               </div>
-              <div className="mb-3 flex h-11 items-center gap-2 rounded-[8px] border border-[#d6c9aa] bg-white px-3">
+              <div className="mb-3 flex h-11 shrink-0 items-center gap-2 rounded-[8px] border border-[#d6c9aa] bg-white px-3">
                 <Search size={18} />
                 <input
                   value={query}
@@ -2192,7 +2194,7 @@ export function PosApp({
                   className="h-full flex-1 bg-transparent outline-none"
                 />
               </div>
-              <div className="mb-3 flex flex-wrap gap-2">
+              <div className="mb-3 flex shrink-0 flex-wrap gap-2">
                 {[{ id: "all", name: "Semua" }, ...categories].map((category) => (
                   <button
                     key={category.id}
@@ -2207,7 +2209,7 @@ export function PosApp({
                   </button>
                 ))}
               </div>
-              <div className="max-h-[58vh] overflow-y-auto pr-1">
+              <div className="min-h-0 flex-1 overflow-y-auto pr-1">
                 <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
                   {visibleProducts.map((product) => (
                     <button
@@ -2242,8 +2244,8 @@ export function PosApp({
               </div>
             </section>
 
-            <aside className="min-h-0 overflow-y-auto p-4">
-              <div className="mb-3 grid grid-cols-2 gap-2">
+            <aside className="flex max-h-[92vh] min-h-0 flex-col overflow-hidden p-4">
+              <div className="mb-3 grid shrink-0 grid-cols-2 gap-2">
                 {["Dine in", "Bungkus"].map((type) => (
                   <button
                     key={type}
@@ -2256,7 +2258,7 @@ export function PosApp({
                   </button>
                 ))}
               </div>
-              <div className="mb-3 grid gap-2">
+              <div className="mb-3 grid shrink-0 gap-2">
                 <input
                   value={tableNumber}
                   onChange={(event) => setTableNumber(event.target.value)}
@@ -2270,7 +2272,7 @@ export function PosApp({
                   className="h-10 rounded-[8px] border border-[#d6c9aa] px-3 font-bold outline-none"
                 />
               </div>
-              <div className="space-y-2">
+              <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
                 {cart.map((item) => (
                   <div
                     key={item.lineId}
@@ -2308,7 +2310,7 @@ export function PosApp({
                   </div>
                 ))}
               </div>
-              <div className="mt-3 space-y-2 border-t border-[#d6c9aa] pt-3">
+              <div className="mt-3 shrink-0 space-y-2 border-t border-[#d6c9aa] bg-[#fffdf5] pt-3">
                 <div className="flex justify-between text-sm font-bold text-[#68705c]">
                   <span>Subtotal</span>
                   <span>{formatRupiah(cartSubtotal)}</span>
@@ -2376,6 +2378,14 @@ export function PosApp({
 
       {isProductEditModalOpen && editingProductId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3">
+          <button
+            type="button"
+            onClick={() => resetProductForm()}
+            className="absolute right-4 top-4 z-[70] grid h-11 w-11 place-items-center rounded-full bg-[#fffdf5] text-[#28451f] shadow-xl"
+            aria-label="Tutup popup edit menu"
+          >
+            <X size={24} />
+          </button>
           <form
             onSubmit={addProduct}
             className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-[8px] bg-[#fffdf5] p-4 shadow-2xl"
@@ -2384,13 +2394,6 @@ export function PosApp({
               <h2 className="flex items-center gap-2 text-xl font-black">
                 <Utensils size={22} /> Edit Menu
               </h2>
-              <button
-                type="button"
-                onClick={() => resetProductForm()}
-                className="rounded-[8px] bg-[#f5ded5] px-3 py-2 text-sm font-black text-[#a13f28]"
-              >
-                Tutup
-              </button>
             </div>
             <FormInput
               label="Nama menu"
