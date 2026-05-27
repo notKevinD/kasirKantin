@@ -2765,8 +2765,8 @@ function OrderConfirmationModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-3 sm:items-center">
-      <div className="max-h-[92vh] w-full max-w-xl overflow-hidden rounded-[8px] bg-[#fffdf5] shadow-2xl">
-        <div className="border-b border-[#d6c9aa] px-4 py-3">
+      <div className="flex max-h-[92vh] min-h-0 w-full max-w-xl flex-col overflow-hidden rounded-[8px] bg-[#fffdf5] shadow-2xl">
+        <div className="shrink-0 border-b border-[#d6c9aa] px-4 py-3">
           <h2 className="text-xl font-black">
             {isEditing ? "Konfirmasi Perubahan Transaksi" : "Konfirmasi Pesanan"}
           </h2>
@@ -2775,7 +2775,7 @@ function OrderConfirmationModal({
           </p>
         </div>
 
-        <div className="max-h-[58vh] overflow-y-auto px-4 py-3">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
           <div className="mb-3 grid grid-cols-2 gap-2">
             <button
               type="button"
@@ -2832,7 +2832,7 @@ function OrderConfirmationModal({
           </div>
         </div>
 
-        <div className="border-t border-[#d6c9aa] bg-white px-4 py-3">
+        <div className="shrink-0 border-t border-[#d6c9aa] bg-white px-4 py-3">
           <div className="space-y-2">
             <div className="flex items-center justify-between text-xl font-black">
               <span>Total</span>
