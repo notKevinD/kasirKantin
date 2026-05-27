@@ -1709,10 +1709,10 @@ export function PosApp({
                           {formatRupiah(product.price)}
                         </p>
                       </div>
-                    <div className="mt-2 grid grid-cols-3 gap-1.5">
+                    <div className="mt-2 grid grid-cols-2 gap-1.5">
                       <button
                         onClick={() => toggleProduct(product)}
-                        className={`min-h-8 rounded-[8px] px-1.5 py-1 text-xs font-bold leading-tight ${
+                        className={`col-span-2 min-h-8 rounded-[8px] px-1.5 py-1 text-[11px] font-bold leading-tight ${
                           product.isAvailable
                             ? "bg-[#eef3df] text-[#28451f]"
                             : "bg-[#f5ded5] text-[#a13f28]"
@@ -1722,13 +1722,13 @@ export function PosApp({
                       </button>
                       <button
                         onClick={() => startEditProduct(product)}
-                        className="flex min-h-8 items-center justify-center gap-1 rounded-[8px] bg-[#f4efe2] px-1.5 py-1 text-xs font-bold leading-tight text-[#28451f]"
+                        className="flex min-h-8 items-center justify-center gap-1 rounded-[8px] bg-[#f4efe2] px-1.5 py-1 text-[11px] font-bold leading-tight text-[#28451f]"
                       >
-                        <Pencil size={13} /> Edit
+                        <Pencil size={12} /> Edit
                       </button>
                       <button
                         onClick={() => deleteProduct(product)}
-                        className="min-h-8 rounded-[8px] bg-[#f5ded5] px-1.5 py-1 text-xs font-bold leading-tight text-[#a13f28]"
+                        className="min-h-8 rounded-[8px] bg-[#f5ded5] px-1.5 py-1 text-[11px] font-bold leading-tight text-[#a13f28]"
                       >
                         Hapus
                       </button>
