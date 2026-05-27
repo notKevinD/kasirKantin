@@ -165,6 +165,7 @@ type ActiveTab = "kasir" | "menu" | "riwayat" | "pengguna" | "audit";
 type ToastMessage = {
   id: number;
   message: string;
+  type: "success" | "error" | "info";
 };
 
 const emptyProductForm = {
@@ -391,17 +392,18 @@ export function PosApp({
       nextQuantity > 1
         ? `${product.name} jadi ${nextQuantity} item`
         : `${product.name} ditambahkan ke pesanan`,
+      "success",
     );
   }
 
-  function showToast(message: string) {
+  function showToast(message: string, type: ToastMessage["type"] = "info") {
     if (toastTimeoutRef.current) {
       clearTimeout(toastTimeoutRef.current);
     }
 
     toastIdRef.current += 1;
-    setToast({ id: toastIdRef.current, message });
-    toastTimeoutRef.current = setTimeout(() => setToast(null), 2400);
+    setToast({ id: toastIdRef.current, message, type });
+    toastTimeoutRef.current = setTimeout(() => setToast(null), 3200);
   }
 
   function triggerMenuBounce(productId: string) {
@@ -435,12 +437,12 @@ export function PosApp({
     if (isSavingOrder) return;
     if (cart.length === 0) return;
     if (!currentShift) {
-      alert("Buka shift kasir dulu sebelum mencatat transaksi.");
+      showToast("Buka shift kasir dulu sebelum mencatat transaksi.", "error");
       return;
     }
 
     if (discountAmount > 0 && !discountReason.trim()) {
-      alert("Alasan diskon wajib diisi.");
+      showToast("Alasan diskon wajib diisi.", "error");
       return;
     }
 
@@ -449,7 +451,7 @@ export function PosApp({
       paymentMethod === "Tunai" &&
       Number(cashReceived || 0) < cartTotal
     ) {
-      alert("Uang diterima masih kurang dari total belanja.");
+      showToast("Uang diterima masih kurang dari total belanja.", "error");
       return;
     }
 
@@ -464,7 +466,7 @@ export function PosApp({
       paymentMethod === "Tunai" &&
       Number(cashReceived || 0) < cartTotal
     ) {
-      alert("Uang diterima masih kurang dari total belanja.");
+      showToast("Uang diterima masih kurang dari total belanja.", "error");
       return;
     }
 
@@ -502,7 +504,10 @@ export function PosApp({
       );
 
       if (!response.ok) {
-        alert(await getErrorMessage(response, "Transaksi belum bisa disimpan."));
+        showToast(
+          await getErrorMessage(response, "Transaksi belum bisa disimpan."),
+          "error",
+        );
         return;
       }
 
@@ -534,8 +539,9 @@ export function PosApp({
       setIsOrderConfirmOpen(false);
       showToast(
         order.status === "paid"
-          ? "Transaksi selesai dan nota dicetak"
-          : "Pesanan masuk ke Transaksi Berjalan",
+          ? `Transaksi ${order.orderNumber} selesai, tersimpan, dan nota dicetak.`
+          : `Pesanan ${order.orderNumber} tersimpan di Transaksi Berjalan.`,
+        "success",
       );
 
       window.setTimeout(() => window.print(), 350);
@@ -571,11 +577,12 @@ export function PosApp({
         });
 
         if (!response.ok) {
-          alert(
+          showToast(
             await getErrorMessage(
               response,
               "Menu belum bisa disimpan. Cek nama, kategori, dan harga.",
             ),
+            "error",
           );
           return;
         }
@@ -584,6 +591,7 @@ export function PosApp({
         setProducts((current) =>
           current.map((item) => (item.id === product.id ? product : item)),
         );
+        showToast(`Menu ${product.name} berhasil diperbarui.`, "success");
         setIsProductEditModalOpen(false);
         resetProductForm(event.currentTarget);
         return;
@@ -599,17 +607,19 @@ export function PosApp({
       });
 
       if (!response.ok) {
-        alert(
+        showToast(
           await getErrorMessage(
             response,
             "Menu belum bisa ditambahkan. Cek nama, kategori, dan harga.",
           ),
+          "error",
         );
         return;
       }
 
       const product = (await response.json()) as Product;
       setProducts((current) => [...current, product]);
+      showToast(`Menu ${product.name} berhasil ditambahkan.`, "success");
       resetProductForm(event.currentTarget);
     } finally {
       setIsSavingProduct(false);
@@ -628,7 +638,10 @@ export function PosApp({
       });
 
       if (!uploadResponse.ok) {
-        alert(await getErrorMessage(uploadResponse, "Foto menu belum bisa diupload."));
+        showToast(
+          await getErrorMessage(uploadResponse, "Foto menu belum bisa diupload."),
+          "error",
+        );
         return null;
       }
 
@@ -674,7 +687,7 @@ export function PosApp({
     });
 
     if (!response.ok) {
-      alert("Menu belum bisa dihapus.");
+      showToast("Menu belum bisa dihapus.", "error");
       return;
     }
 
@@ -686,6 +699,7 @@ export function PosApp({
     if (editingProductId === product.id) {
       resetProductForm();
     }
+    showToast(`Menu ${product.name} berhasil dihapus.`, "success");
   }
 
   async function addCategory(event: FormEvent<HTMLFormElement>) {
@@ -704,11 +718,12 @@ export function PosApp({
       });
 
       if (!response.ok) {
-        alert(
+        showToast(
           await getErrorMessage(
             response,
             "Kategori belum bisa ditambahkan. Pastikan namanya belum ada.",
           ),
+          "error",
         );
         return;
       }
@@ -717,6 +732,7 @@ export function PosApp({
       setCategories((current) => [...current, category]);
       setProductForm((current) => ({ ...current, categoryId: category.id }));
       setCategoryName("");
+      showToast(`Kategori ${category.name} berhasil ditambahkan.`, "success");
     } finally {
       setIsSavingCategory(false);
     }
@@ -728,8 +744,9 @@ export function PosApp({
     ).length;
 
     if (usedCount > 0) {
-      alert(
+      showToast(
         `Kategori "${category.name}" masih dipakai ${usedCount} menu. Pindahkan atau hapus menunya dulu.`,
+        "error",
       );
       return;
     }
@@ -742,7 +759,7 @@ export function PosApp({
     });
 
     if (!response.ok) {
-      alert(await getErrorMessage(response, "Kategori belum bisa dihapus."));
+      showToast(await getErrorMessage(response, "Kategori belum bisa dihapus."), "error");
       return;
     }
 
@@ -759,6 +776,7 @@ export function PosApp({
         categoryId: nextCategories[0]?.id ?? "",
       }));
     }
+    showToast(`Kategori ${category.name} berhasil dihapus.`, "success");
   }
 
   async function toggleProduct(product: Product) {
@@ -768,10 +786,17 @@ export function PosApp({
       body: JSON.stringify({ isAvailable: !product.isAvailable }),
     });
 
-    if (!response.ok) return;
+    if (!response.ok) {
+      showToast("Status menu belum bisa diubah.", "error");
+      return;
+    }
     const updated = (await response.json()) as Product;
     setProducts((current) =>
       current.map((item) => (item.id === product.id ? updated : item)),
+    );
+    showToast(
+      `${updated.name} sekarang ${updated.isAvailable ? "tersedia" : "habis"}.`,
+      "success",
     );
   }
 
@@ -864,7 +889,10 @@ export function PosApp({
     });
 
     if (!response.ok) {
-      alert("Transaksi belum bisa dihapus.");
+      showToast(
+        await getErrorMessage(response, "Transaksi belum bisa dibatalkan."),
+        "error",
+      );
       return;
     }
 
@@ -879,6 +907,7 @@ export function PosApp({
     if (editingOrderId === order.id) {
       cancelEditOrder();
     }
+    showToast(`Transaksi ${order.orderNumber} berhasil dibatalkan.`, "success");
   }
 
   async function refundOrder(order: Order) {
@@ -899,7 +928,7 @@ export function PosApp({
     });
 
     if (!response.ok) {
-      alert(await getErrorMessage(response, "Refund belum bisa disimpan."));
+      showToast(await getErrorMessage(response, "Refund belum bisa disimpan."), "error");
       return;
     }
 
@@ -908,7 +937,10 @@ export function PosApp({
       current.map((item) => (item.id === updatedOrder.id ? updatedOrder : item)),
     );
     setLastOrder(updatedOrder);
-    showToast("Refund transaksi sudah dicatat");
+    showToast(
+      `Refund ${formatRupiah(amount)} untuk ${order.orderNumber} sudah dicatat.`,
+      "success",
+    );
     refreshAuditLogs();
   }
 
@@ -928,7 +960,7 @@ export function PosApp({
       });
 
       if (!response.ok) {
-        alert(await getErrorMessage(response, "Shift belum bisa dibuka."));
+        showToast(await getErrorMessage(response, "Shift belum bisa dibuka."), "error");
         return;
       }
 
@@ -939,7 +971,10 @@ export function PosApp({
       setCurrentShift(result.currentShift);
       setOpeningCash("");
       setShiftNote("");
-      showToast("Shift kasir dibuka");
+      showToast(
+        `Shift kasir dibuka dengan modal ${formatRupiah(Number(openingCash || 0))}.`,
+        "success",
+      );
       refreshAuditLogs();
     } finally {
       setIsSavingShift(false);
@@ -963,14 +998,14 @@ export function PosApp({
       });
 
       if (!response.ok) {
-        alert(await getErrorMessage(response, "Shift belum bisa ditutup."));
+        showToast(await getErrorMessage(response, "Shift belum bisa ditutup."), "error");
         return;
       }
 
       setCurrentShift(null);
       setClosingCash("");
       setShiftNote("");
-      showToast("Shift kasir ditutup");
+      showToast("Shift kasir berhasil ditutup dan tersimpan.", "success");
       refreshAuditLogs();
     } finally {
       setIsSavingShift(false);
@@ -2492,12 +2527,24 @@ function Summary({ label, value }: { label: string; value: string }) {
 function Toast({ toast }: { toast: ToastMessage | null }) {
   if (!toast) return null;
 
+  const styles = {
+    success: "border-[#b9c99b] bg-[#28451f] text-white",
+    error: "border-[#e2b8aa] bg-[#a13f28] text-white",
+    info: "border-[#d6c9aa] bg-[#fffdf5] text-[#28451f]",
+  }[toast.type];
+  const label = {
+    success: "Berhasil",
+    error: "Perlu dicek",
+    info: "Info",
+  }[toast.type];
+
   return (
     <div
       key={toast.id}
-      className="fixed bottom-5 right-5 z-[60] max-w-[320px] rounded-[8px] border border-[#d6c9aa] bg-[#28451f] px-4 py-3 text-sm font-black text-white shadow-xl"
+      className={`fixed bottom-5 right-5 z-[60] max-w-[360px] rounded-[8px] border px-4 py-3 text-sm shadow-xl ${styles}`}
     >
-      {toast.message}
+      <p className="text-xs font-black uppercase opacity-80">{label}</p>
+      <p className="font-black leading-snug">{toast.message}</p>
     </div>
   );
 }
