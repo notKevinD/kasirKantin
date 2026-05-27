@@ -2570,7 +2570,7 @@ export function PosApp({
         onCancel={() => setIsOrderConfirmOpen(false)}
         onConfirm={submitOrder}
       />
-      <Toast toast={toast} />
+      <Toast toast={toast} onClose={() => setToast(null)} />
       <PrintableReceipt
         order={printTarget === "order" ? printOrder : null}
         mode={printMode}
@@ -2594,7 +2594,13 @@ function Summary({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Toast({ toast }: { toast: ToastMessage | null }) {
+function Toast({
+  toast,
+  onClose,
+}: {
+  toast: ToastMessage | null;
+  onClose: () => void;
+}) {
   if (!toast) return null;
 
   const styles = {
@@ -2611,8 +2617,16 @@ function Toast({ toast }: { toast: ToastMessage | null }) {
   return (
     <div
       key={toast.id}
-      className={`fixed bottom-5 right-5 z-[60] max-w-[360px] rounded-[8px] border px-4 py-3 text-sm shadow-xl ${styles}`}
+      className={`fixed bottom-5 right-5 z-[60] max-w-[360px] rounded-[8px] border py-3 pl-4 pr-10 text-sm shadow-xl ${styles}`}
     >
+      <button
+        type="button"
+        onClick={onClose}
+        className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-white/15 text-current hover:bg-white/25"
+        aria-label="Tutup notifikasi"
+      >
+        <X size={16} />
+      </button>
       <p className="text-xs font-black uppercase opacity-80">{label}</p>
       <p className="font-black leading-snug">{toast.message}</p>
     </div>
