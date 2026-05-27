@@ -1583,8 +1583,8 @@ export function PosApp({
         )}
 
         {activeTab === "menu" && canManageMenu && (
-          <section className="grid gap-4 lg:min-h-[680px] lg:grid-cols-[280px_minmax(0,1fr)_340px] xl:grid-cols-[320px_minmax(0,1fr)_400px]">
-            <div className="min-w-0 overflow-y-auto pr-1 lg:max-h-[680px]">
+          <section className="grid gap-4 lg:h-[680px] lg:min-h-0 lg:grid-cols-[280px_minmax(0,1fr)_340px] xl:h-[760px] xl:grid-cols-[320px_minmax(0,1fr)_400px]">
+            <div className="min-w-0 overflow-y-auto pr-1 lg:h-full lg:min-h-0">
               <form
                 onSubmit={addCategory}
                 className="rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4"
@@ -1638,7 +1638,7 @@ export function PosApp({
               </form>
             </div>
 
-            <div className="flex min-w-0 flex-col overflow-hidden rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4 lg:min-h-[680px]">
+            <div className="flex min-w-0 flex-col overflow-hidden rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4 lg:h-full lg:min-h-0">
               <div className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-3">
                 <h2 className="text-xl font-black">Daftar Menu</h2>
                 <div className="flex h-12 min-w-[260px] flex-1 items-center gap-2 rounded-[8px] border border-[#d6c9aa] bg-white px-3 md:max-w-md">
@@ -1717,7 +1717,7 @@ export function PosApp({
               </div>
             </div>
 
-            <div className="min-w-0 overflow-y-auto pr-1 lg:max-h-[680px]">
+            <div className="min-w-0 overflow-y-auto pr-1 lg:h-full lg:min-h-0">
               <form
                 onSubmit={addProduct}
                 className="rounded-[8px] border border-[#d6c9aa] bg-[#fffdf5] p-4"
